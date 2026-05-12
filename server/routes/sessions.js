@@ -1,14 +1,9 @@
 const express = require('express');
 const router = express.Router();
-
-const sessions = [
-  { id: '1', userId: '1', subject: 'Math', startTime: '2026-04-24T10:00:00Z', endTime: '2026-04-24T11:30:00Z', duration: 90, active: false },
-  { id: '2', userId: '2', subject: 'History', startTime: '2026-04-24T14:00:00Z', endTime: null, duration: null, active: true },
-];
-let nextSessionId = 3;
+const supabase = require('../db')
 
 // POST /sessions/start
-router.post('/start', (req, res) => {
+router.post('/start', async (req, res) => {
   console.log('POST /sessions/start', req.body);
   const { userId, subject } = req.body;
 
@@ -16,21 +11,39 @@ router.post('/start', (req, res) => {
     return res.status(400).json({ error: 'userId and subject are required' });
   }
 
-  const alreadyActive = sessions.find(s => s.userId === userId && s.active);
+  const {data: alreadyActive, error} = await supabase
+    .from('sessions')
+    .select()
+    .eq('user_id', userId)
+    .eq('active', true)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error(error)
+    return res.status(500).json({ error: 'Database error' })
+  }
+
   if (alreadyActive) {
     return res.status(409).json({ error: 'User already has an active session' });
   }
 
-  const newSession = {
-    id: String(nextSessionId++),
-    userId,
-    subject,
-    startTime: new Date().toISOString(),
-    endTime: null,
-    duration: null,
-    active: true,
-  };
-  sessions.push(newSession);
+  const { data: newSession, error: insertError } = await supabase
+    .from('sessions')
+    .insert({
+      user_id: userId,
+      subject,
+      start_time: new Date().toISOString(),
+      end_time: null,
+      duration: null,
+      active: true,
+    })
+    .select()
+    .single()
+
+  if (insertError) {
+    console.error(insertError)
+    return res.status(500).json({ error: 'Database error' })
+  }
 
   res.status(201).json({ message: 'Session started', session: newSession });
 });
