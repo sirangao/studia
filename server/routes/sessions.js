@@ -49,7 +49,7 @@ router.post('/start', async (req, res) => {
 });
 
 // POST /sessions/stop
-router.post('/stop', (req, res) => {
+router.post('/stop', async (req, res) => {
   console.log('POST /sessions/stop', req.body);
   const { userId } = req.body;
 
@@ -57,24 +57,60 @@ router.post('/stop', (req, res) => {
     return res.status(400).json({ error: 'userId is required' });
   }
 
-  const session = sessions.find(s => s.userId === userId && s.active);
+  const { data: session , error } = await supabase
+    .from('sessions')
+    .select()
+    .eq('user_id', userId)
+    .eq('active', true)
+    .single();
+  
+  if (error && error.code !== 'PGRST116') {
+    console.error(error)
+    return res.status(500).json({ error: 'Database error' })
+  }
+
   if (!session) {
+    console.error(error);
     return res.status(404).json({ error: 'No active session found for this user' });
   }
 
-  session.endTime = new Date().toISOString();
-  session.duration = Math.round((new Date(session.endTime) - new Date(session.startTime)) / 60000);
-  session.active = false;
+  const endTime = new Date().toISOString();
+  const duration = Math.round((new Date(session.end_time) - new Date(session.start_time)) / 60000);
 
-  res.json({ message: 'Session stopped', session });
+  const { data: updatedSession, error: updateError } = await supabase
+    .from('sessions')
+    .update({
+      end_time: endTime,
+      duration: duration,
+      active: false
+    })
+    .eq('id', session.id)
+    .select()
+    .single()
+
+  if (updateError){
+    console.error(updateError);
+    return res.status(500).json({ error: 'Database insertion error' });
+  }
+  res.json({ message: 'Session stopped', updatedSession });
 });
 
 // GET /sessions/:userId
-router.get('/:userId', (req, res) => {
+router.get('/:userId', async (req, res) => {
   console.log('GET /sessions/:userId', req.params.userId);
   const { userId } = req.params;
 
-  const userSessions = sessions.filter(s => s.userId === userId);
+  const { data: userSessions, error } = await supabase
+    .from('sessions')
+    .select()
+    .eq('user_id', userId)
+  
+  if (error)
+  {
+    console.error(error);
+    return res.status(500).json({ error: 'Database error' })
+  }
+
   res.json({ sessions: userSessions });
 });
 

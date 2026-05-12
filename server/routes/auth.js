@@ -19,6 +19,7 @@ router.post('/register', async (req, res) => {
   .single()
 
   if (error && error.code !== 'PGRST116') {
+    console.error(error)
     return res.status(500).json({ error: 'Database error' })
   }
 
@@ -26,11 +27,16 @@ router.post('/register', async (req, res) => {
     return res.status(409).json({ error: 'Username already taken' });
   }
 
-  const { data: newUser } = await supabase
+  const { data: newUser, error: insertError } = await supabase
     .from('users')
     .insert({ username, password, name })
     .select()
     .single()
+
+  if (insertError) {
+    console.error(insertError)
+    return res.status(500).json({ error: 'Database error' })
+  }
 
   const { password: _, ...safeUser } = newUser;
   res.status(201).json({ message: 'User registered', user: safeUser });
@@ -45,13 +51,18 @@ router.post('/login', async (req, res) => {
     return res.status(400).json({ error: 'username and password are required' });
   }
 
-  const { data: user } = await supabase
+  const { data: user, error } = await supabase
     .from('users')
     .select()
     .eq('username', username)
     .eq('password', password)
     .single()
   
+  if (error && error.code !== 'PGRST116') {
+    console.error(error);
+    return res.status(500).json({ error: 'Database error' })
+  }
+
   if (!user) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
