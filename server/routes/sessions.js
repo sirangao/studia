@@ -34,7 +34,9 @@ router.post('/stop', async (req, res) => {
     if (!session) return res.status(404).json({ error: 'No active session found for this user' })
 
     const endTime = new Date().toISOString()
-    const duration = Math.round((new Date(endTime) - new Date(session.start_time)) / 60000)
+    const duration  = Math.floor(
+      (new Date(endTime) - new Date(session.start_time)) / 1000
+    );
     const updatedSession = await sessionRepo.stop(session.id, endTime, duration)
     res.json({ message: 'Session stopped', updatedSession })
   } catch (err) {

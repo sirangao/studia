@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,150 +7,235 @@ import {
   FlatList,
   StyleSheet,
   SafeAreaView,
+  ActivityIndicator,
   Alert,
 } from 'react-native';
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+// this is a temp user
+// eventually apps.js will receive current logged in user, and replace this with that user.
 const CURRENT_USER = { id: '1', username: 'alice', name: 'Alice' };
 
-function SessionTimer({ subject, onEndSession }) {
-  const [isRunning, setIsRunning] = useState(false);
-  const [elapsedTime, setElapsedTime] = useState(0);
+function formatDuration(seconds) {
+  if (seconds === null || seconds === undefined) return 'In progress...';
 
-  const intervalIdRef = useRef(null);
-  const startTimeRef = useRef(0);
+  const hours = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
 
-  useEffect(() => {
-    if (isRunning) {
-      intervalIdRef.current = setInterval(() => {
-        setElapsedTime(Date.now() - startTimeRef.current);
-      }, 10);
-    }
 
-    return () => {
-      clearInterval(intervalIdRef.current);
-    };
-  }, [isRunning]);
-
-  function start() {
-    setIsRunning(true);
-    startTimeRef.current = Date.now() - elapsedTime;
+  if (hours > 0) {
+    return `${hours}h ${mins}m ${secs}s`;
   }
 
-  function stop() {
-    setIsRunning(false);
+  if (mins > 0) {
+    return `${mins}m ${secs}s`;
   }
 
-  function reset() {
-    setElapsedTime(0);
-    setIsRunning(false);
-  }
-
-  function endSession() {
-    setIsRunning(false);
-
-    onEndSession({
-      id: String(Date.now()),
-      userId: CURRENT_USER.id,
-      subject,
-      durationMs: elapsedTime,
-      startTime: new Date(Date.now() - elapsedTime).toISOString(),
-      endTime: new Date().toISOString(),
-      active: false,
-    });
-  }
-
-  function displayTime() {
-    let hours = Math.floor(elapsedTime / (1000 * 60 * 60));
-    let minutes = Math.floor((elapsedTime / (1000 * 60)) % 60);
-    let seconds = Math.floor((elapsedTime / 1000) % 60);
-
-    hours = String(hours).padStart(2, '0');
-    minutes = String(minutes).padStart(2, '0');
-    seconds = String(seconds).padStart(2, '0');
-
-    return `${hours}:${minutes}:${seconds}`;
-  }
-
-  return (
-    <SafeAreaView style={styles.timerContainer}>
-      <Text style={styles.timerSubject}>Studying</Text>
-      <Text style={styles.timerSubjectName}>{subject}</Text>
-
-      <Text style={styles.timerDisplay}>{displayTime()}</Text>
-
-      <TouchableOpacity onPress={start} style={styles.startControls}>
-        <Text style={styles.buttonText}>Start / Resume Session</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={stop} style={styles.stopControls}>
-        <Text style={styles.buttonText}>Pause Session</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={reset} style={styles.resetControls}>
-        <Text style={styles.buttonText}>Restart Session</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={endSession} style={styles.endControls}>
-        <Text style={styles.buttonText}>End Session</Text>
-      </TouchableOpacity>
-    </SafeAreaView>
-  );
+  return `${secs}s`;
 }
 
-function formatDurationMs(ms) {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
+function formatDate(isoString) {
+  if (!isoString) return '';
 
-  if (minutes === 0) return `${seconds}s`;
-  return `${minutes}m ${seconds}s`;
+  const date = new Date(isoString);
+
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
+
+function formatTime(isoString) {
+  if (!isoString) return '';
+
+  return new Date(isoString).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatLiveTime(ms) {
+  //get total seconds from ms
+  const totalSeconds = Math.floor(ms/1000);
+  //get hours (3600 sec in 1 hour)
+  const hours = Math.floor(totalSeconds/3600);
+  //get leftover seconds after getting hours, then use to get minutes
+  const minutes = Math.floor((totalSeconds%3600) / 60);
+  //get total seconds from calculating values after all minutes are extracted
+  const seconds = Math.floor(totalSeconds%60);
+
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
 
 function SessionCard({ session }) {
+  const isActive = session.active;
+
   return (
-    <View style={styles.sessionCard}>
+    <View style={[styles.sessionCard, isActive && styles.sessionCardActive]}>
       <View style={styles.sessionCardRow}>
         <Text style={styles.sessionSubject}>{session.subject}</Text>
-        <Text style={styles.sessionDuration}>
-          {formatDurationMs(session.durationMs)}
+
+        <Text style={[styles.sessionDuration, isActive && styles.sessionDurationActive]}>
+          {isActive ? '🟢 Live' : `Duration: ${formatDuration(session.duration)}`}
         </Text>
       </View>
+
       <Text style={styles.sessionDate}>
-        {new Date(session.endTime).toLocaleString()}
+        Started {formatDate(session.start_time)}
       </Text>
+
+      {!isActive && session.end_time && (
+        <Text style={styles.sessionDate}>
+          Ended {formatDate(session.end_time)}
+        </Text>
+      )}
     </View>
   );
 }
 
 export default function HomeScreen() {
-  const [screen, setScreen] = useState('home');
-
+  //session states
   const [sessions, setSessions] = useState([]);
-  const [activeSubject, setActiveSubject] = useState('');
+  const [activeSession, setActiveSession] = useState(null);
 
+  const [loading, setLoading] = useState(true);
+  const [sessionLoading, setSessionLoading] = useState(false);
+
+  //subject states
+  const [subjectInput, setSubjectInput] = useState('');
+  const [showSubjectInput, setShowSubjectInput] = useState(false);
+
+  //class states
   const [classes, setClasses] = useState(['CS 35L', 'Math 115A']);
   const [classInput, setClassInput] = useState('');
   const [editingClasses, setEditingClasses] = useState(false);
 
-  const [subjectInput, setSubjectInput] = useState('');
-  const [showSubjectInput, setShowSubjectInput] = useState(false);
+  //live timer
+  const [liveElapsedTime, setLiveElapsedTime] = useState(null);
 
-  function handleStartSession() {
-    if (!subjectInput.trim()) {
+  useEffect(() => {
+    fetchSessions();
+  }, []);
+
+  //live timer when a session is active
+  useEffect(() => {
+    //if no session active, set time to 0
+    if(!activeSession) {
+      setLiveElapsedTime(0);
+      return;
+    }
+
+    //every second, update liveElapsedTime
+    const intervalId = setInterval(() => {
+    const elapsed = Date.now() - new Date(activeSession.start_time).getTime();
+      setLiveElapsedTime(elapsed);
+    }, 1000);
+
+    // when time stops, clear our interval
+    return () => clearInterval(intervalId);
+
+  }, [activeSession]);
+
+  async function fetchSessions() {
+    try {
+      const response = await fetch(`${API_URL}/sessions/${CURRENT_USER.id}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Error', data.error || 'Could not fetch sessions');
+        return;
+      }
+
+      const sortedSessions = (data.sessions || []).sort((a, b) => {
+        return new Date(b.start_time) - new Date(a.start_time);
+      });
+
+      setSessions(sortedSessions);
+      setActiveSession(sortedSessions.find(session => session.active) || null);
+    } catch (err) {
+      console.error('Fetch sessions error:', err);
+      Alert.alert(
+        'Connection error',
+        'Could not reach the server. Make sure your backend is running and API_URL is correct.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleStartSession() {
+    const subject = subjectInput.trim();
+
+    if (!subject) {
       Alert.alert('Enter a subject', 'What are you studying?');
       return;
     }
 
-    setActiveSubject(subjectInput.trim());
-    setSubjectInput('');
-    setShowSubjectInput(false);
-    setScreen('timer');
+    setSessionLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/sessions/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: CURRENT_USER.id,
+          subject,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Could not start session', data.error || 'Something went wrong');
+        return;
+      }
+
+      setSubjectInput('');
+      setShowSubjectInput(false);
+
+      await fetchSessions();
+    } catch (err) {
+      console.error('Start session error:', err);
+      Alert.alert('Connection error', 'Could not reach the server.');
+    } finally {
+      setSessionLoading(false);
+    }
   }
 
-  function handleEndSession(session) {
-    setSessions([session, ...sessions]);
-    setActiveSubject('');
-    setScreen('home');
+  async function handleStopSession() {
+    setSessionLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/sessions/stop`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: CURRENT_USER.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Could not stop session', data.error || 'Something went wrong');
+        return;
+      }
+
+      await fetchSessions();
+    } catch (err) {
+      console.error('Stop session error:', err);
+      Alert.alert('Connection error', 'Could not reach the server.');
+    } finally {
+      setSessionLoading(false);
+    }
   }
 
   function handleAddClass() {
@@ -171,20 +256,11 @@ export default function HomeScreen() {
     setClasses(classes.filter(c => c !== cls));
   }
 
-  if (screen === 'timer') {
-    return (
-      <SessionTimer
-        subject={activeSubject}
-        onEndSession={handleEndSession}
-      />
-    );
-  }
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <FlatList
         data={sessions}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         ListHeaderComponent={
           <>
             <View style={styles.header}>
@@ -193,7 +269,37 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.section}>
-              {showSubjectInput ? (
+              {activeSession ? (
+                <>
+                  <View style={styles.activeSessionBanner}>
+                    <Text style={styles.activeSessionText}>
+                      📖 Studying:{' '}
+                      <Text style={{ fontWeight: '700' }}>
+                        {activeSession.subject}
+                      </Text>
+                    </Text>
+
+                    <Text style={styles.activeSessionSince}>
+                      Since {formatTime(activeSession.start_time)}
+                    </Text>
+                    <Text>
+                      Elapsed: {formatLiveTime(liveElapsedTime)}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.sessionBtn, styles.sessionBtnStop]}
+                    onPress={handleStopSession}
+                    disabled={sessionLoading}
+                  >
+                    {sessionLoading ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.sessionBtnText}>⏹ End Session</Text>
+                    )}
+                  </TouchableOpacity>
+                </>
+              ) : showSubjectInput ? (
                 <>
                   <TextInput
                     style={styles.input}
@@ -208,8 +314,13 @@ export default function HomeScreen() {
                     <TouchableOpacity
                       style={[styles.sessionBtn, { flex: 1, marginRight: 8 }]}
                       onPress={handleStartSession}
+                      disabled={sessionLoading}
                     >
-                      <Text style={styles.sessionBtnText}>▶ Start</Text>
+                      {sessionLoading ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <Text style={styles.sessionBtnText}>▶ Start</Text>
+                      )}
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -218,6 +329,7 @@ export default function HomeScreen() {
                         setShowSubjectInput(false);
                         setSubjectInput('');
                       }}
+                      disabled={sessionLoading}
                     >
                       <Text style={styles.sessionBtnText}>Cancel</Text>
                     </TouchableOpacity>
@@ -281,9 +393,19 @@ export default function HomeScreen() {
 
             <View style={styles.sectionHeader2}>
               <Text style={styles.sectionTitle}>Study Log</Text>
+
+              {!loading && (
+                <TouchableOpacity onPress={fetchSessions}>
+                  <Text style={styles.sectionAction}>Refresh</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
-            {sessions.length === 0 && (
+            {loading && (
+              <ActivityIndicator style={{ marginTop: 20 }} color="#4A90D9" />
+            )}
+
+            {!loading && sessions.length === 0 && (
               <Text style={styles.emptyText}>
                 No sessions yet. Start your first one!
               </Text>
@@ -342,6 +464,9 @@ const styles = StyleSheet.create({
   },
 
   sectionHeader2: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginHorizontal: 16,
     marginTop: 24,
     marginBottom: 8,
@@ -367,6 +492,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
+  sessionBtnStop: {
+    backgroundColor: '#E05252',
+  },
+
   sessionBtnCancel: {
     backgroundColor: '#8892B0',
   },
@@ -375,6 +504,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+
+  activeSessionBanner: {
+    backgroundColor: '#EAF4FF',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+
+  activeSessionText: {
+    fontSize: 15,
+    color: '#1A1F36',
+  },
+
+  activeSessionSince: {
+    fontSize: 12,
+    color: '#8892B0',
+    marginTop: 4,
   },
 
   input: {
@@ -447,6 +594,11 @@ const styles = StyleSheet.create({
     padding: 14,
   },
 
+  sessionCardActive: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#4A90D9',
+  },
+
   sessionCardRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -465,6 +617,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  sessionDurationActive: {
+    color: '#4A90D9',
+  },
+
   sessionDate: {
     fontSize: 12,
     color: '#aaa',
@@ -476,90 +632,5 @@ const styles = StyleSheet.create({
     color: '#aaa',
     marginTop: 16,
     fontSize: 14,
-  },
-
-  timerContainer: {
-    flex: 1,
-    backgroundColor: 'white',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-
-  timerSubject: {
-    fontSize: 18,
-    color: '#8892B0',
-    marginBottom: 4,
-  },
-
-  timerSubjectName: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1A1F36',
-    marginBottom: 20,
-  },
-
-  timerDisplay: {
-    fontSize: 56,
-    fontWeight: '700',
-    color: 'white',
-    marginBottom: 20,
-    backgroundColor: 'blue',
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    overflow: 'hidden',
-  },
-
-  startControls: {
-    marginTop: 10,
-    marginBottom: 12,
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: 'green',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: 70,
-    width: '80%',
-  },
-
-  stopControls: {
-    marginTop: 10,
-    marginBottom: 12,
-    padding: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 10,
-    backgroundColor: 'red',
-    height: 70,
-    width: '80%',
-  },
-
-  resetControls: {
-    marginTop: 10,
-    marginBottom: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: 'purple',
-    height: 70,
-    width: '80%',
-  },
-
-  endControls: {
-    marginTop: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: '#1A1F36',
-    height: 70,
-    width: '80%',
-  },
-
-  buttonText: {
-    color: 'white',
-    fontSize: 20,
   },
 });

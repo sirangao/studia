@@ -4,5 +4,5 @@
 # node modules
 node_modules/
 
-#expo file
-.expo/
+#expo temp folder
+.expo
