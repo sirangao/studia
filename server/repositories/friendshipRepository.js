@@ -1,7 +1,7 @@
 const supabase = require('../db')
 
 function lowBeforeHigh(lo, hi){
-  return Number(lo) < Number(hi) ? [lo, hi] : [lo, hi];
+  return Number(lo) < Number(hi) ? [lo, hi] : [hi, lo];
 }
 
 async function findByPair(userId, friendId) {
@@ -37,10 +37,15 @@ async function accept(userId, friendId) {
 }
 
 async function findAcceptedByUserId(userId) {
-  const { data, error } = await supabase
-    .from('friendships').select('user_id_low, user_id_high').or(`user_id_low.eq.${userId},user_id_high.eq.${userId}`).eq('status', 'accepted')
-  if (error) throw error
-  return data
+  const { data: low, error: e1 } = await supabase
+    .from('friendships').select('user_id_low, user_id_high').eq('user_id_low', Number(userId)).eq('status', 'accepted')
+  if (e1) throw e1
+
+  const { data: high, error: e2 } = await supabase
+    .from('friendships').select('user_id_low, user_id_high').eq('user_id_high', Number(userId)).eq('status', 'accepted')
+  if (e2) throw e2
+
+  return [...low, ...high]
 }
 
 module.exports = { findByPair, findPendingByPair, create, accept, findAcceptedByUserId }

@@ -7,27 +7,25 @@ export default function FriendCard({ username, name, hoursStudied, avatarURL}){
   const hours = hoursStudied ? hoursStudied : 'Has not studied yet this week...';
 
   return (
-    <View style={styles.buffer}>
-      <View style={styles.card}>
-        <View style={styles.buffer}>
-          <Image
-            source={imageSource}
-            style={styles.avatar}
-          />
-        </View>
-        
-        <View style={styles.columnText}>
-
-          <Text style={styles.name}>
-            {name} | @{username}
-          </Text>
-          
-          <Text style={styles.subtitle}>
-            {hours}
-          </Text>
-        </View>
-        
+    <View style={styles.card}>
+      <View style={styles.buffer}>
+        <Image
+          source={imageSource}
+          style={styles.avatar}
+        />
       </View>
+      
+      <View style={styles.columnText}>
+
+        <Text style={styles.name}>
+          {name} | @{username}
+        </Text>
+        
+        <Text style={styles.subtitle}>
+          {hours}
+        </Text>
+      </View>
+      
     </View>
   );
 }
@@ -37,8 +35,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
-    marginHorizontal: 5,
-    marginBottom: 10,
+    marginHorizontal: 10,
+    marginTop: 10,
     borderRadius: 15,
   },
   avatar: {
@@ -49,7 +47,7 @@ const styles = StyleSheet.create({
     borderColor: 'dimgray',
   },
   buffer: {
-    padding: 10
+    padding: 8
   },
   columnText: {
     justifyContent: 'center',
