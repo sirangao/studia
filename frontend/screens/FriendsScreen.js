@@ -3,15 +3,16 @@ import React, {useEffect, useState} from 'react';
 import FriendCard from '../components/FriendCard';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
-const CURRENT_USER_ID = 1;
 
-export default function FriendsScreen() {
+export default function FriendsScreen({ user, token }) {
   const [friends, setFriends] = useState([]);
 
   useEffect(() => {
     const loadFriends = async () => {
       try{
-        const data = await fetch(`${API_URL}/friends/${CURRENT_USER_ID}`);
+        const data = await fetch(`${API_URL}/friends/${user.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
         const friendsList = await data.json();
         setFriends(friendsList.friends);
       }

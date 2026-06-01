@@ -4,7 +4,7 @@ const DEFAULT_AVATAR = require('../assets/default-avatar.png');
 
 export default function FriendCard({ username, name, hoursStudied, avatarURL}){
   const imageSource = avatarURL ? {uri: avatarURL} : DEFAULT_AVATAR;
-  const hours = hoursStudied ? hoursStudied : 'Has not studied yet this week...';
+  const hours = hoursStudied != null ? hoursStudied : 'Has not studied yet this week...';
 
   return (
     <View style={styles.card}>
