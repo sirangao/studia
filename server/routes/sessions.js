@@ -34,6 +34,7 @@ router.post('/stop', async (req, res) => {
 
   try {
     const session = await sessionRepo.findActiveByUserId(userId)
+    console.log('active session:', session)
     if (!session) return res.status(404).json({ error: 'No active session found for this user' })
 
     const endTime = new Date().toISOString()
