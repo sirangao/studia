@@ -7,9 +7,11 @@ import {
   ActivityIndicator,
   Alert,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const DEFAULT_AVATAR = require('../assets/default-avatar.png');
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 
   'Friday', 'Saturday'];
@@ -66,13 +68,15 @@ function countSessions(sessions, startOfWeek, endOfWeek) {
 
 }
 
-export default function ProfileScreen({ user, token, onLogout }) {
+export default function ProfileScreen({ user, token, onLogout, avatarURL }) {
   const [weeklyCounts, setWeeklyCounts] = useState({});
   const [weekLabel, setWeekLabel] = useState('');
-  const [loading, setLoading] = useState('true');
+  const [loading, setLoading] = useState(true);
+  const [friendCount, setFriendCount] = useState(0);
 
   useEffect( () => {
     loadWeeklySessions();
+    loadFriendCount();
   }, []);
 
   async function loadWeeklySessions() {
@@ -103,8 +107,23 @@ export default function ProfileScreen({ user, token, onLogout }) {
       setLoading(false);
     }
   }
-  
-  
+
+  async function loadFriendCount(){
+    try{
+      const data = await fetch(`${API_URL}/friends/${user.id}`, {
+        headers: {'Authorization': `Bearer ${token}`},
+      });
+      const friendships = await data.json();
+      if(!data.ok)
+        return;
+      setFriendCount((friendships.friends || []).length);
+    }
+    catch(err){
+      console.log('ERROR: could not load friend count;', err);
+      Alert.alert('friend count error', 'could not fetch friends from server');
+    }
+  }
+    
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -115,8 +134,16 @@ export default function ProfileScreen({ user, token, onLogout }) {
 return (
   <View style={styles.container}>
     <View style={styles.profileCard}>
-      <Text style={styles.profileTitle}>{user.name}'s Profile</Text>
-      <Text style={styles.profileSubtitle}>Weekly Study Sessions</Text>
+
+      <Image style={styles.avatar} source={DEFAULT_AVATAR} />
+
+      <View style={styles.profileInfo}>
+
+        <Text style={styles.profileName}>{user.name}</Text>
+        <Text style={styles.profileUsername}>@{user.username}</Text>
+
+      </View>
+      
     </View>
 
     <View style={styles.weekCard}>
@@ -157,18 +184,33 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 
-  profileTitle: {
+  profileName: {
     color: '#fff',
     fontSize: 24,
     fontWeight: '700',
   },
 
-  profileSubtitle: {
+  profileUsername: {
     color: '#8892B0',
     fontSize: 14,
     marginTop: 6,
+  },
+
+  profileInfo: {
+    flex: 1,
+    paddingHorizontal: 12,
+  },
+
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 80/2,
+    borderWidth: 1.5,
+    borderColor: 'dimgray',
   },
 
   weekCard: {

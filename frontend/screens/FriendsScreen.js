@@ -14,7 +14,7 @@ export default function FriendsScreen({ user, token }) {
           headers: { 'Authorization': `Bearer ${token}` },
         });
         const friendsList = await data.json();
-        setFriends(friendsList.friends);
+        setFriends(friendsList.friends || []);
       }
       catch (err){
         console.error('ERROR: could not fetch list of friends;', err);
