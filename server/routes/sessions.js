@@ -35,7 +35,7 @@ router.post('/stop', async (req, res) => {
 
     const endTime = new Date().toISOString()
     const duration = Math.floor(
-      (new Date(endTime) - new Date(session.start_time)) / 1000
+      (new Date(endTime) - new Date(session.startTime)) / 1000
     );
     const updatedSession = await sessionRepo.stop(session.id, endTime, duration)
     res.json({ message: 'Session stopped', updatedSession })
