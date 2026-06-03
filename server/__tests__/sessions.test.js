@@ -31,14 +31,20 @@ afterAll(async () => {
 
 describe('POST /sessions/start', () => {
   test('starts a session for a user with no active session', async () => {
+    const before = Date.now();
     const res = await request(app)
       .post('/sessions/start')
       .set('Authorization', `Bearer ${token1}`)
       .send({ subject: 'Chemistry' });
+    const after = Date.now();
 
     expect(res.statusCode).toBe(201);
     expect(res.body.session.active).toBe(true);
     expect(res.body.session.subject).toBe('Chemistry');
+
+    const startTime = new Date(res.body.session.startTime).getTime();
+    expect(startTime).toBeGreaterThanOrEqual(before);
+    expect(startTime).toBeLessThanOrEqual(after);
   });
 
   test('returns 409 when user already has an active session', async () => {
@@ -62,13 +68,24 @@ describe('POST /sessions/start', () => {
 
 describe('POST /sessions/stop', () => {
   test('stops an active session', async () => {
+    const before = Date.now();
     const res = await request(app)
       .post('/sessions/stop')
       .set('Authorization', `Bearer ${token2}`)
+    const after = Date.now();
 
     expect(res.statusCode).toBe(200);
     expect(res.body.updatedSession.active).toBe(false);
     expect(res.body.updatedSession.endTime).not.toBeNull();
+
+    const duration = res.body.updatedSession.duration;
+    expect(typeof duration).toBe('number');
+    expect(duration).toBeGreaterThanOrEqual(0);
+    expect(Number.isNaN(duration)).toBe(false);
+
+    const startTime = new Date(res.body.updatedSession.startTime).getTime();
+    expect(startTime).toBeGreaterThan(0);
+    expect(startTime).toBeLessThanOrEqual(after);
   });
 
   test('returns 404 when user has no active session', async () => {
