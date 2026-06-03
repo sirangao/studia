@@ -54,8 +54,11 @@ function formatTime(isoString) {
 }
 
 function formatLiveTime(ms) {
+
+  const validMs = Math.max(0, ms || 0);
+
   //get total seconds from ms
-  const totalSeconds = Math.floor(ms/1000);
+  const totalSeconds = Math.floor(validMs/1000);
   //get hours (3600 sec in 1 hour)
   const hours = Math.floor(totalSeconds/3600);
   //get leftover seconds after getting hours, then use to get minutes
@@ -90,7 +93,7 @@ function SessionCard({ session }) {
         </Text>
       )}
 
-      {session.notes ? (
+      {!isActive && session.notes ? (
         <View style={styles.sessionNotesBox}>
           <Text style={styles.sessionNotesLabel}>Notes</Text>
           <Text style={styles.sessionNotesText}>{session.notes}</Text>
@@ -112,6 +115,9 @@ export default function HomeScreen({ user, token }) {
   const [showEndNotes, setShowEndNotes] = useState(false);
   const [sessionNotes, setSessionNotes] = useState('');
   const [pendingNoteInputTime, setPendingNoteInputTime] = useState(null);
+
+  //paused time(when in notes state)
+  const [totalPausedMs, setTotalPausedMs] = useState(0);
 
   //subject states
   const [subjectInput, setSubjectInput] = useState('');
@@ -136,16 +142,20 @@ export default function HomeScreen({ user, token }) {
       setLiveElapsedTime(0);
       return;
     }
+  
 
     if(pendingNoteInputTime) {
-      setLiveElapsedTime(new Date(pendingNoteInputTime) - new Date(activeSession.startTime));
+      setLiveElapsedTime(
+      new Date(pendingNoteInputTime).getTime() - 
+      new Date(activeSession.startTime).getTime() - 
+      totalPausedMs);
       return;
     }
 
     //every second, update liveElapsedTime
     console.log('activeSession:', JSON.stringify(activeSession));
     const intervalId = setInterval(() => {
-    const elapsed = Date.now() - new Date(activeSession.startTime).getTime();
+    const elapsed = Date.now() - new Date(activeSession.startTime).getTime()-totalPausedMs;
       setLiveElapsedTime(elapsed);
     }, 1000);
 
@@ -212,6 +222,11 @@ export default function HomeScreen({ user, token }) {
 
       setSubjectInput('');
       setShowSubjectInput(false);
+      setShowEndNotes(false);
+      setSessionNotes('');
+      setPendingNoteInputTime(null);
+      setTotalPausedMs(0);
+      setLiveElapsedTime(0);
 
       await fetchSessions();
     } catch (err) {
@@ -251,6 +266,7 @@ export default function HomeScreen({ user, token }) {
       setShowEndNotes(false);
       setSessionNotes('');
       setPendingNoteInputTime(null);
+      setTotalPausedMs(0);
 
       await fetchSessions();
     } catch (err) {
@@ -266,8 +282,7 @@ export default function HomeScreen({ user, token }) {
 
     const endTime = new Date().toISOString();
 
-    setPendingNoteInputTime(endTime);
-    setLiveElapsedTime(new Date(endTime) - new Date(activeSession.startTime));
+    setPendingNoteInputTime(new Date().toISOString());
     setShowEndNotes(true);
   }
 
@@ -287,6 +302,17 @@ export default function HomeScreen({ user, token }) {
 
   function handleRemoveClass(cls) {
     setClasses(classes.filter(c => c !== cls));
+  }
+
+  function handleCancelNotes() {
+    if(pendingNoteInputTime) {
+       const pausedMs = Date.now() - new Date(pendingNoteInputTime).getTime();
+       setTotalPausedMs(prev => prev + Math.max(0, pausedMs));
+    }
+
+    setShowEndNotes(false);
+    setSessionNotes('');
+    setPendingNoteInputTime(null);
   }
 
   function handleEndSessionWithNotes() {
@@ -324,10 +350,7 @@ export default function HomeScreen({ user, token }) {
 
             <TouchableOpacity
                style={[styles.sessionBtn, styles.sessionBtnCancel, { flex: 1 }]}
-               onPress={() => {
-                setShowEndNotes(false);
-                setSessionNotes('');
-               }}
+               onPress={handleCancelNotes}
                disabled={sessionLoading}
             >
               <Text style={styles.sessionBtnText}>Cancel</Text>
