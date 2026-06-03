@@ -15,6 +15,13 @@ async function findById(id) {
   return data
 }
 
+async function updateById(id, fields){
+  const {data, error} = await supabase
+    .from('users').update(fields).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
 async function searchByUsername(username) {
   const { data, error } = await supabase
     .from('users').select().ilike('username', `%${username}%`)
@@ -38,4 +45,4 @@ async function create({ username, password, name }) {
   return data
 }
 
-module.exports = { findByUsername, findById, searchByUsername, findManyByIds, create }
+module.exports = { findByUsername, findById, updateById, searchByUsername, findManyByIds, create }

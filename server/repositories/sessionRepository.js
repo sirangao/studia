@@ -8,6 +8,7 @@ function normalize(row) {
     startTime: row.start_time,
     endTime: row.end_time,
     duration: row.duration,
+    notes: row.notes || '',
     active: row.active
   }
 }
@@ -28,10 +29,10 @@ async function create({ userId, subject, startTime }) {
   return normalize(data)
 }
 
-async function stop(id, endTime, duration) {
+async function stop(id, endTime, duration, notes) {
   const { data, error } = await supabase
     .from('sessions')
-    .update({ end_time: endTime, duration, active: false })
+    .update({ end_time: endTime, duration, notes, active: false })
     .eq('id', id)
     .select().single()
   if (error) throw error
