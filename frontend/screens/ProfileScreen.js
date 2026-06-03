@@ -225,7 +225,7 @@ return (
 
         <View style={styles.stats}>
           <TouchableOpacity onPress={() => navigation.navigate('Friends')}>
-            <Text style={styles.stat}>{friendCount} Friends</Text>
+            <Text style={styles.stat}>{friendCount} {friendCount === 1 ? "Friend" : "Friends"}</Text>
           </TouchableOpacity>
         </View>
 
