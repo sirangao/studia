@@ -3,6 +3,8 @@ const router = express.Router();
 const userRepo = require('../repositories/userRepository')
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcrypt')
+const requireAuth = require('../middleware/requireAuth')
+
 // POST /auth/register
 router.post('/register', async (req, res) => {
   console.log('POST /auth/register', req.body);
@@ -49,6 +51,37 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Database error' })
+  }
+});
+
+// PATCH /auth/update
+router.patch('/update', requireAuth, async (req, res) => {
+  console.log('PATCH /auth/update', req.body);
+  const userId = req.user.id;
+  const {name, username} = req.body;
+
+  const fields = {};
+  if(name && name.trim())
+    fields.name = name.trim();
+  if(username && username.trim())
+    fields.username = username.trim();
+
+  if(Object.keys(fields).length === 0)
+    return res.status(400).json({error: 'no fields to update'});
+
+  try{
+    if(fields.username){
+      const alreadyExists = await userRepo.findByUsername(fields.username);
+      if(alreadyExists && alreadyExists.id != userId)
+        return res.status(409).json({error: 'username already exists'});
+    }
+    const updated = await userRepo.updateById(userId, fields);
+    const {password: _, ...safeUser} = updated;
+    res.json({user: safeUser});
+  }
+  catch(err){
+    console.error(err);
+    res.status(500).json({error: 'Database error'});
   }
 });
 

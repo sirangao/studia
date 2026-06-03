@@ -90,6 +90,13 @@ function SessionCard({ session }) {
           Ended {formatDate(session.endTime)}
         </Text>
       )}
+
+      {session.notes ? (
+        <View style={styles.sessionNotesBox}>
+          <Text style={styles.sessionNotesLabel}>Notes</Text>
+          <Text style={styles.sessionNotesText}>{session.notes}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -101,6 +108,11 @@ export default function HomeScreen({ user, token }) {
 
   const [loading, setLoading] = useState(true);
   const [sessionLoading, setSessionLoading] = useState(false);
+
+  //session ending/note adding states
+  const [showEndNotes, setShowEndNotes] = useState(false);
+  const [sessionNotes, setSessionNotes] = useState('');
+  const [pendingNoteInputTime, setPendingNoteInputTime] = useState(null);
 
   //subject states
   const [showClassPicker, setShowClassPicker] = useState(false);
@@ -153,6 +165,11 @@ export default function HomeScreen({ user, token }) {
       return;
     }
 
+    if(pendingNoteInputTime) {
+      setLiveElapsedTime(new Date(pendingNoteInputTime) - new Date(activeSession.startTime));
+      return;
+    }
+
     //every second, update liveElapsedTime
     console.log('activeSession:', JSON.stringify(activeSession));
     const intervalId = setInterval(() => {
@@ -163,7 +180,7 @@ export default function HomeScreen({ user, token }) {
     // when time stops, clear our interval
     return () => clearInterval(intervalId);
 
-  }, [activeSession]);
+  }, [activeSession, pendingNoteInputTime]);
 
   async function fetchSessions() {
     try {
@@ -227,6 +244,9 @@ export default function HomeScreen({ user, token }) {
   async function handleStopSession() {
     setSessionLoading(true);
 
+    console.log("sessionNotes before sav:", sessionNotes);
+    console.log("notes sent to db:", sessionNotes.trim() || null);
+
     try {
       const response = await fetch(`${API_URL}/sessions/stop`, {
         method: 'POST',
@@ -234,6 +254,10 @@ export default function HomeScreen({ user, token }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
+        body: JSON.stringify({
+          notes: sessionNotes.trim() || null,
+          endTime: pendingNoteInputTime,
+        }),
       });
 
       const data = await response.json();
@@ -243,6 +267,10 @@ export default function HomeScreen({ user, token }) {
         return;
       }
 
+      setShowEndNotes(false);
+      setSessionNotes('');
+      setPendingNoteInputTime(null);
+
       await fetchSessions();
     } catch (err) {
       console.error('Stop session error:', err);
@@ -250,6 +278,16 @@ export default function HomeScreen({ user, token }) {
     } finally {
       setSessionLoading(false);
     }
+  }
+
+  function handleStartNote() {
+    if (!activeSession) return;
+
+    const endTime = new Date().toISOString();
+
+    setPendingNoteInputTime(endTime);
+    setLiveElapsedTime(new Date(endTime) - new Date(activeSession.startTime));
+    setShowEndNotes(true);
   }
 
   function handleAddClass() {
@@ -272,6 +310,66 @@ export default function HomeScreen({ user, token }) {
     const updated = classes.filter(c => c !== cls);
     setClasses(updated);
     saveClasses(updated);
+  }
+
+  function handleEndSessionWithNotes() {
+    if(showEndNotes) {
+      return (
+        <View style = {styles.endSessionNotesBox}>
+          <Text style = {styles.notesLabel}>Session Notes</Text>
+
+          <TextInput
+              style={[styles.input, styles.notesInput]}
+              placeholder="Recommended: What did you study?"
+              placeholderTextColor="#aaa"
+              value={sessionNotes}
+              onChangeText={setSessionNotes}
+              maxLength={150}
+              multiline
+              textAlignVertical="top"
+          />
+
+          <Text style = {styles.notesCounter}>
+            Char count: {sessionNotes.length}/150
+          </Text>
+
+          <View style = {styles.row}>
+            <TouchableOpacity
+              style={[styles.sessionBtn, styles.sessionBtnStop, { flex: 1, marginRight: 8}]}
+              onPress={handleStopSession}
+              disabled={sessionLoading}
+            >
+              {sessionLoading ? 
+              (<ActivityIndicator color="#fff" />)
+               : 
+              (<Text style={styles.sessionBtnText}>Save Session</Text>)}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+               style={[styles.sessionBtn, styles.sessionBtnCancel, { flex: 1 }]}
+               onPress={() => {
+                setShowEndNotes(false);
+                setSessionNotes('');
+               }}
+               disabled={sessionLoading}
+            >
+              <Text style={styles.sessionBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
+    return (
+      <TouchableOpacity
+        style={[styles.sessionBtn, styles.sessionBtnStop]}
+        onPress={handleStartNote}
+        disabled={sessionLoading}
+      >
+        <Text style={styles.sessionBtnText}>End Session</Text>
+      </TouchableOpacity>
+    )
+
   }
 
   return (
@@ -305,17 +403,7 @@ export default function HomeScreen({ user, token }) {
                     </Text>
                   </View>
 
-                  <TouchableOpacity
-                    style={[styles.sessionBtn, styles.sessionBtnStop]}
-                    onPress={handleStopSession}
-                    disabled={sessionLoading}
-                  >
-                    {sessionLoading ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <Text style={styles.sessionBtnText}>⏹ End Session</Text>
-                    )}
-                  </TouchableOpacity>
+                  {handleEndSessionWithNotes()}
                 </>
               ) : (
                 <>
@@ -531,6 +619,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
+  sessionNotesBox: {
+  backgroundColor: '#F8F9FC',
+  borderRadius: 8,
+  padding: 10,
+  marginTop: 10,
+},
+
+  sessionNotesLabel: {
+    color: '#8892B0',
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+
+  sessionNotesText: {
+    color: '#1A1F36',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+
   activeSessionBanner: {
     backgroundColor: '#EAF4FF',
     borderRadius: 10,
@@ -685,5 +794,34 @@ const styles = StyleSheet.create({
     color: '#aaa',
     marginTop: 16,
     fontSize: 14,
+  },
+  endSessionNotesBox: {
+    marginTop: 4,
+  },
+
+  notesLabel: {
+    color: '#1A1F36',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+
+  notesInput: {
+    minHeight: 90,
+    marginBottom: 6,
+  },
+
+  notesCounter: {
+    color: '#8892B0',
+    fontSize: 12,
+    textAlign: 'right',
+    marginBottom: 4,
+  },
+
+  sessionNotes: {
+    color: '#1A1F36',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 10,
   },
 });
