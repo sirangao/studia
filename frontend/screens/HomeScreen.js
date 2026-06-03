@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -102,8 +103,7 @@ export default function HomeScreen({ user, token }) {
   const [sessionLoading, setSessionLoading] = useState(false);
 
   //subject states
-  const [subjectInput, setSubjectInput] = useState('');
-  const [showSubjectInput, setShowSubjectInput] = useState(false);
+  const [showClassPicker, setShowClassPicker] = useState(false);
 
   //class states
   const [classes, setClasses] = useState([]);
@@ -194,14 +194,8 @@ export default function HomeScreen({ user, token }) {
     }
   }
 
-  async function handleStartSession() {
-    const subject = subjectInput.trim();
-
-    if (!subject) {
-      Alert.alert('Enter a subject', 'What are you studying?');
-      return;
-    }
-
+  async function handleStartSession(subject) {
+    setShowClassPicker(false);
     setSessionLoading(true);
 
     try {
@@ -220,9 +214,6 @@ export default function HomeScreen({ user, token }) {
         Alert.alert('Could not start session', data.error || 'Something went wrong');
         return;
       }
-
-      setSubjectInput('');
-      setShowSubjectInput(false);
 
       await fetchSessions();
     } catch (err) {
@@ -326,49 +317,56 @@ export default function HomeScreen({ user, token }) {
                     )}
                   </TouchableOpacity>
                 </>
-              ) : showSubjectInput ? (
-                <>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="What are you studying? e.g. CS 35L"
-                    placeholderTextColor="#aaa"
-                    value={subjectInput}
-                    onChangeText={setSubjectInput}
-                    autoFocus
-                  />
-
-                  <View style={styles.row}>
-                    <TouchableOpacity
-                      style={[styles.sessionBtn, { flex: 1, marginRight: 8 }]}
-                      onPress={handleStartSession}
-                      disabled={sessionLoading}
-                    >
-                      {sessionLoading ? (
-                        <ActivityIndicator color="#fff" />
-                      ) : (
-                        <Text style={styles.sessionBtnText}>▶ Start</Text>
-                      )}
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.sessionBtn, styles.sessionBtnCancel, { flex: 1 }]}
-                      onPress={() => {
-                        setShowSubjectInput(false);
-                        setSubjectInput('');
-                      }}
-                      disabled={sessionLoading}
-                    >
-                      <Text style={styles.sessionBtnText}>Cancel</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
               ) : (
-                <TouchableOpacity
-                  style={styles.sessionBtn}
-                  onPress={() => setShowSubjectInput(true)}
-                >
-                  <Text style={styles.sessionBtnText}>▶ Start Study Session</Text>
-                </TouchableOpacity>
+                <>
+                  <TouchableOpacity
+                    style={styles.sessionBtn}
+                    onPress={() => {
+                      if (classes.length === 0) {
+                        Alert.alert('No classes', 'Add a class below before starting a session.');
+                        return;
+                      }
+                      setShowClassPicker(true);
+                    }}
+                    disabled={sessionLoading}
+                  >
+                    {sessionLoading
+                      ? <ActivityIndicator color="#fff" />
+                      : <Text style={styles.sessionBtnText}>▶ Start Study Session</Text>
+                    }
+                  </TouchableOpacity>
+
+                  <Modal
+                    visible={showClassPicker}
+                    transparent
+                    animationType="slide"
+                    onRequestClose={() => setShowClassPicker(false)}
+                  >
+                    <View style={styles.modalOverlay}>
+                      <View style={styles.modalCard}>
+                        <Text style={styles.modalTitle}>What are you studying?</Text>
+                        <FlatList
+                          data={classes}
+                          keyExtractor={(item) => item}
+                          renderItem={({ item }) => (
+                            <TouchableOpacity
+                              style={styles.modalItem}
+                              onPress={() => handleStartSession(item)}
+                            >
+                              <Text style={styles.modalItemText}>{item}</Text>
+                            </TouchableOpacity>
+                          )}
+                        />
+                        <TouchableOpacity
+                          style={[styles.sessionBtn, styles.sessionBtnCancel, { marginTop: 12 }]}
+                          onPress={() => setShowClassPicker(false)}
+                        >
+                          <Text style={styles.sessionBtnText}>Cancel</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </Modal>
+                </>
               )}
             </View>
 
@@ -565,6 +563,34 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '60%',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1A1F36',
+    marginBottom: 16,
+  },
+  modalItem: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF1F6',
+  },
+  modalItemText: {
+    fontSize: 16,
+    color: '#1A1F36',
   },
 
   classPills: {
