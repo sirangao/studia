@@ -5,6 +5,24 @@ const jwt = require('jsonwebtoken')
 const bcrypt = require('bcrypt')
 const requireAuth = require('../middleware/requireAuth')
 
+const supabase = require('../db');
+const multer = require('multer');
+const storage = multer.memoryStorage();
+const fileFilter = (req, file, cb) => {
+  const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/heic'];
+  if(allowedMimeTypes.includes(file.mimetype)){
+    cb(null, true);
+  }
+  else{
+    cb(new Error('Unsupported file type.'), false);
+  }
+};
+const upload = multer({
+  storage: storage, 
+  fileFilter: fileFilter, 
+  limits: {fileSize: 5*1024*1024, files: 1}
+});
+
 // POST /auth/register
 router.post('/register', async (req, res) => {
   console.log('POST /auth/register', req.body);
@@ -28,7 +46,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-
 // POST /auth/login
 router.post('/login', async (req, res) => {
   console.log('POST /auth/login', req.body);
@@ -51,6 +68,35 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Database error' })
+  }
+});
+
+// POST /auth/avatar
+router.post('/avatar', requireAuth, upload.single('avatarImage'), async (req, res) => {
+  console.log('POST /auth/avatar', req.file);
+  if(!req.file)
+    return res.status(400).json({error: 'no image uplaoded'});
+
+  const userId = req.user.id;
+  const path = `${userId}/${Date.now()}.jpg`;
+
+  try{
+    const {error: uploadErr} = await supabase.storage
+      .from('profileAvatars')
+      .upload(path, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: true,
+      });
+    if(uploadErr) throw uploadErr;
+    
+    const {data: {publicUrl}} = supabase.storage.from('profileAvatars').getPublicUrl(path);
+    const updated = await userRepo.updateById(userId, {avatar_url: publicUrl});
+    const {password: _, ...safeUser} = updated;
+    res.json({user: safeUser});
+  }
+  catch(err){
+    console.error(err);
+    res.status(500).json({error: 'Database error; upload failed'});
   }
 });
 

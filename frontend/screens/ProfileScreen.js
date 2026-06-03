@@ -12,6 +12,7 @@ import {
   TextInput,
   ImageBackground,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 const DEFAULT_AVATAR = require('../assets/default-avatar.png');
@@ -101,6 +102,15 @@ export default function ProfileScreen({ user, token, onLogout, navigation, onUpd
   const [editName, setEditName] = useState(user.name);
   const [editUsername, setEditUsername] = useState(user.username);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [previewURI, setPreviewURI] = useState(null);
+
+  function getAvatarSource() {
+    if(previewURI) 
+      return {uri: previewURI};
+    if(user.avatar_url) 
+      return {uri: user.avatar_url};
+    return DEFAULT_AVATAR;
+  }
 
   function startEdit(){
     setEditName(user.name);
@@ -204,6 +214,56 @@ export default function ProfileScreen({ user, token, onLogout, navigation, onUpd
       Alert.alert('friend count error', 'could not fetch friends from server');
     }
   }
+
+  async function uploadAvatarImage(){
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if(!permissionResult.granted){
+      Alert.alert('Permission needed', 'Permission to access the photo library is required.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1,1],
+      quality: 1,
+    });
+    if(result.canceled) return;
+
+    const localURI = result.assets[0].uri;
+    setPreviewURI(localURI);
+    setIsUpdating(true);
+
+    try{
+      const formData = new FormData();
+      formData.append('avatarImage', {
+        uri: localURI,
+        name: 'avatar.jpg',
+        type: 'image/jpg',
+      });
+
+      const data = await fetch(`${API_URL}/auth/avatar`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      const imageUpload = await data.json();
+      if(!data.ok) throw new Error('Image upload failed');
+
+      onUpdateUser(imageUpload.user);
+      setPreviewURI(null);
+    }
+    catch(err){
+      console.log('ERROR: profile avatar upload error', err);
+      Alert.alert('Image upload failed', 'could not upload image');
+      setPreviewURI(null);
+    }
+    finally{
+      setIsUpdating(false);
+    }
+  }
     
   if (loading) {
     return (
@@ -216,7 +276,7 @@ return (
   <View style={styles.container}>
     <View style={styles.profileCard}>
 
-      <Image style={styles.avatar} source={DEFAULT_AVATAR} />
+      <Image style={styles.avatar} source={getAvatarSource()} />
 
       <View style={styles.profileInfo}>
 
@@ -274,10 +334,18 @@ return (
 
         <View style={styles.modalCard}>
 
-          <View style={styles.modalAvatar}>
-            <Image source={DEFAULT_AVATAR} style={styles.avatar}/>
-            <TouchableOpacity>
-              <Text>Update Image</Text>
+          <Text style={styles.modalHeader}>Update Profile</Text>
+
+          <View style={styles.modalAvatarCard}>
+            <Image source={getAvatarSource()} style={styles.modalAvatar}/>
+            <TouchableOpacity 
+              onPress={uploadAvatarImage} 
+              disabled={isUpdating}
+            >
+              {isUpdating ? 
+                <Text style={styles.modalAvatarButton}>Uploading...</Text> :
+                <Text style={styles.modalAvatarButton}>Update Image</Text>
+              }
             </TouchableOpacity>
           </View>
 
@@ -401,16 +469,41 @@ const styles = StyleSheet.create({
     marginVertical: 80,
   },
 
-  modalAvatar:{
+  modalHeader: {
     alignSelf: 'center',
-    margin: 16,
+    fontSize: 28,
+    fontWeight: '500',
+    marginBottom: 20,
+  },
+
+  modalAvatarCard:{
+    alignItems: 'center',
+    margin: 32,
+  },
+
+  modalAvatar: {
+    width: 140,
+    height: 140,
+    borderRadius: 140/2,
+    borderWidth: 2,
+    borderColor: 'dimgray',
+  },
+
+  modalAvatarButton: {
+    fontSize: 14, 
+    padding: 4,
+    borderColor: 'black',
+    borderWidth: 1,
+    borderRadius: 8,
+    margin: 8,
+    backgroundColor: '#e3dfde',
   },
 
   fieldLabel: {
     fontSize: 16,
     fontWeight: '500',
     color: 'black',
-    marginTop: 24,
+    marginTop: 16,
     marginBottom: 2,
     width: '95%',
   },
