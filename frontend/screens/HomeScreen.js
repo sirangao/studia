@@ -366,6 +366,7 @@ export default function HomeScreen({ user, token }) {
     setPendingNoteInputTime(null);
   }
 
+  //helper for user inputting notes after ending a session
   function handleNoteInput() {
     return(
       <>
@@ -390,6 +391,7 @@ export default function HomeScreen({ user, token }) {
     );
   }
 
+  //handles when a user is in input phase and has option to cancel(resume session) or save session w/ optional notes
   function handleEndSessionChoices() {
     return(
     <>
@@ -417,6 +419,7 @@ export default function HomeScreen({ user, token }) {
     );
   }
 
+  //if user isn't in note phase, just show end button under session so that they can enter it
   function showEndSessionButton() {
     return (
       <TouchableOpacity
