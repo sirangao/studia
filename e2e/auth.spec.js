@@ -1,79 +1,72 @@
-import {test, expect} from '@playwright/test';
+import {test, expect, request} from '@playwright/test';
 
+const apiBase = 'http://localhost:3000';
 const username = `e2e_${Date.now()}`;
-const password = 'Test123';
+const password = 'Test123!';
 const name = 'E2E User';
 
 test.describe.configure({mode: 'serial'});
 
-test('registers a new user, gets token', async ({page}) => {
+test('registers a new user', async ({page}) => {
+test.setTimeout(60_000);
 await page.goto('/');
-await page.fill('#reg-username', username);
-await page.fill('#reg-password', password);
-await page.fill('#reg-name', name);
-await page.click('#btn-register');
+await page.getByText('Register').click();
+//Gets into register tab
+await page.getByPlaceholder('Full name').fill(name);
+await page.getByPlaceholder('Username').fill(username);
+await page.getByPlaceholder('Password').fill(password);
+await page.getByText('Create account').click();
 
-const res = page.locator('#res-register');
-await expect(res).toBeVisible();
-await expect(res).toContainText('User registered');
-await expect(res).toContainText('"token"');
+await expect(page.getByText(/Hey,/)).toBeVisible();
+//user authenticated, accesses Home page
 });
 
-test('logs in with previously established user', async ({page}) =>{
+test('logs in with registered user', async ({page}) =>{
 await page.goto('/');
-await page.fill('#login-username', username);
-await page.fill('#login-password', password);
-await page.click('#btn-login');
+await page.getByPlaceholder('Username').fill(username);
+await page.getByPlaceholder('Password').fill(password);
+await page.getByText('Log in').last().click();
 
-const res = page.locator('#res-login');
-await expect(res).toBeVisible();
-await expect(res).toContainText('Login successful');
-await expect(res).toContainText('"token"');
-});
-
-
-test('starts a session, waits 30 seconds, then ends session', async ({request}) =>{
-    test.setTimeout(60_000);
-const uName = `playWright_test_${Date.now()}`;
-//gets token, logs in
-await request.post('/auth/register',
-    {data: {username: uName, password: 'Test123', name: 'PlaywrightTest'
-}});
-const {token} = await(await request.post('/auth/login',
-    {data: {username: uName, password: 'Test123'}})).json();
-const auth = {Authorization: `Bearer ${token}`};
-
-//puts student in the class so they can access session for it
-await request.put('/profile/classes', {headers: auth, data: {classes: ['CS35L']}});
-
-//start session
-const startSession = await request.post('/sessions/start', {
-    headers: auth, data: {subject: 'CS35L'}});
-    expect(startSession.status()).toBe(201);
-const started = await startSession.json();
-    expect(started.message).toBe('Session started');
-    expect(started.session.active).toBe(true);
-
-//study for 30sec
-await new Promise(resolve => setTimeout(resolve, 30_000));
-
-//stop session
-const stopSession = await request.post('/sessions/stop', {
-    headers: auth});
-    expect(stopSession.status()).toBe(200);
-    const stopped = await stopSession.json();
-    expect(stopped.message).toBe('Session stopped');
-    expect(stopped.updatedSession.active).toBe(false);
-    expect(stopped.updatedSession.duration).toBeGreaterThanOrEqual(29); //seconds
+await expect(page.getByText(/Hey,/)).toBeVisible();
 });
 
 test('rejects login if using wrong password', async ({page})=> {
 await page.goto('/');
-await page.fill('#login-username', username);
-await page.fill('#login-password', 'wrongPassword123');
-await page.click('#btn-login');
+await page.getByPlaceholder('Username').fill(username);
+await page.getByPlaceholder('Password').fill('Wrongpassword123!');
 
-const res = page.locator('#res-login');
-await expect(res).toBeVisible();
-await expect(res).toContainText('Invalid credentials');
+//assert we stay on login screen since react native doesn't alert failures
+const loginResponse = page.waitForResponse((r)=>r.url().includes('/auth/login'));
+await page.getByText('Log in').last().click();
+expect((await loginResponse).status()).toBe(401);
+
+await expect(page.getByText(/Hey,/)).toHaveCount(0);
+await expect(page.getByPlaceholder('Username')).toBeVisible();
 });
+
+//BELOW IS WIP, WAITING FOR TREVOR AND ANDREW'S FINALIZATION.
+
+// test('starts and ends study session thru UI',
+//     async({page})=>{
+//         test.setTimeout(60_000);
+//     const sessionUser = `e2e_sess_${Date.now()}`;
+//     const api = await request.newContext({baseURL: API_BASE});
+//     await api.post('/auth/register', {data: {username: sessionUser, password, name}});
+//     const{token}=await(await api.post('/auth/login',
+//         {data: {username: sessionUser, password}})).json();
+
+//     await api.put('/profile/classes', {
+//         headers: {Authorizaton: `Bearer ${token}`},
+//         data: {classes: ['CS 35L']},
+// });
+// await api.dispose();
+// await page.goto('/');
+// await page.getByPlaceholder('Username').fill(sessionUser);
+// await page.getByPlaceholder('Password').fill(password);
+// await page.getByText('Log in').last().click();
+
+// await expect(page.getByText(/Hey,/)).toBeVisible();
+// await page.getByText('Start Study Session').click();
+// await page.getByPlaceholder('What are you studying').fill('CS 35L');
+
+//     });
