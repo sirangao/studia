@@ -7,9 +7,15 @@ import {
   ActivityIndicator,
   Alert,
   TouchableOpacity,
+  Image,
+  Modal,
+  TextInput,
+  ImageBackground,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const DEFAULT_AVATAR = require('../assets/default-avatar.png');
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 
   'Friday', 'Saturday'];
@@ -57,7 +63,7 @@ function countSessions(sessions, startOfWeek, endOfWeek) {
 
     if(sessionDate >= startOfWeek && sessionDate <= endOfWeek) {
       const sessionDay = DAYS[sessionDate.getDay()];
-      counts[sessionDay] +=1;
+      counts[sessionDay] += session.duration;
     }
 
   });
@@ -66,13 +72,102 @@ function countSessions(sessions, startOfWeek, endOfWeek) {
 
 }
 
-export default function ProfileScreen({ user, token, onLogout }) {
+//helper for formatting session duration
+function formatDuration(seconds) {
+  if (seconds === null || seconds === undefined) return 'In progress...';
+
+  const hours = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+
+  if (hours > 0) {
+    return `${hours}h ${mins}m ${secs}s`;
+  }
+
+  if (mins > 0) {
+    return `${mins}m ${secs}s`;
+  }
+
+  return `${secs}s`;
+}
+
+
+export default function ProfileScreen({ user, token, onLogout, navigation, onUpdateUser }) {
   const [weeklyCounts, setWeeklyCounts] = useState({});
   const [weekLabel, setWeekLabel] = useState('');
-  const [loading, setLoading] = useState('true');
+  const [loading, setLoading] = useState(true);
+  const [friendCount, setFriendCount] = useState(0);
+  const [editProfileVisible, setEditProfileVisible] = useState(false);
+  const [editName, setEditName] = useState(user.name);
+  const [editUsername, setEditUsername] = useState(user.username);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [previewURI, setPreviewURI] = useState(null);
+
+  function getAvatarSource() {
+    if(previewURI) 
+      return {uri: previewURI};
+    if(user.avatar_url) 
+      return {uri: user.avatar_url};
+    return DEFAULT_AVATAR;
+  }
+
+  function startEdit(){
+    setEditName(user.name);
+    setEditUsername(user.username);
+    setEditProfileVisible(true);
+  }
+
+  function cancelEdit(){
+    setEditProfileVisible(false);
+  }
+
+  async function saveEdit(){
+    const name = editName.trim();
+    const username = editUsername.trim();
+
+    if(!name || !username){
+      Alert.alert('Missing fields', 'Name and Username cannot be empty');
+      return;
+    }
+
+    if(name === user.name && username === user.username){ // no changes made
+      setEditProfileVisible(false);
+      return;
+    }
+
+    setIsUpdating(true);
+    try{
+      const data = await fetch(`${API_URL}/auth/update`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({name, username})
+      });
+      const update = await data.json();
+
+      if(!data.ok){
+        Alert.alert('Unable to save', update.error || 'Something went wrong.');
+        return;
+      }
+
+      onUpdateUser(update.user);
+      setEditProfileVisible(false);
+    }
+    catch(err){
+      console.log('ERROR: could not save name/username update');
+      Alert.alert('server error', 'could not reach server');
+    }
+    finally {
+      setIsUpdating(false);
+    }
+  }
 
   useEffect( () => {
     loadWeeklySessions();
+    loadFriendCount();
   }, []);
 
   async function loadWeeklySessions() {
@@ -103,8 +198,73 @@ export default function ProfileScreen({ user, token, onLogout }) {
       setLoading(false);
     }
   }
-  
-  
+
+  async function loadFriendCount(){
+    try{
+      const data = await fetch(`${API_URL}/friends/${user.id}`, {
+        headers: {'Authorization': `Bearer ${token}`},
+      });
+      const friendships = await data.json();
+      if(!data.ok)
+        return;
+      setFriendCount((friendships.friends || []).length);
+    }
+    catch(err){
+      console.log('ERROR: could not load friend count;', err);
+      Alert.alert('friend count error', 'could not fetch friends from server');
+    }
+  }
+
+  async function uploadAvatarImage(){
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if(!permissionResult.granted){
+      Alert.alert('Permission needed', 'Permission to access the photo library is required.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1,1],
+      quality: 1,
+    });
+    if(result.canceled) return;
+
+    const localURI = result.assets[0].uri;
+    setPreviewURI(localURI);
+    setIsUpdating(true);
+
+    try{
+      const formData = new FormData();
+      formData.append('avatarImage', {
+        uri: localURI,
+        name: 'avatar.jpg',
+        type: 'image/jpg',
+      });
+
+      const data = await fetch(`${API_URL}/auth/avatar`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      const imageUpload = await data.json();
+      if(!data.ok) throw new Error('Image upload failed');
+
+      onUpdateUser(imageUpload.user);
+      setPreviewURI(null);
+    }
+    catch(err){
+      console.log('ERROR: profile avatar upload error', err);
+      Alert.alert('Image upload failed', 'could not upload image');
+      setPreviewURI(null);
+    }
+    finally{
+      setIsUpdating(false);
+    }
+  }
+    
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -115,24 +275,46 @@ export default function ProfileScreen({ user, token, onLogout }) {
 return (
   <View style={styles.container}>
     <View style={styles.profileCard}>
-      <Text style={styles.profileTitle}>{user.name}'s Profile</Text>
-      <Text style={styles.profileSubtitle}>Weekly Study Sessions</Text>
+
+      <Image style={styles.avatar} source={getAvatarSource()} />
+
+      <View style={styles.profileInfo}>
+
+        <Text style={styles.profileName}>{user.name}</Text>
+        <Text style={styles.profileUsername}>@{user.username}</Text>
+
+        <View style={styles.stats}>
+          <TouchableOpacity onPress={() => navigation.navigate('Friends')}>
+            <Text style={styles.stat}>{friendCount} {friendCount === 1 ? "Friend" : "Friends"}</Text>
+          </TouchableOpacity>
+        </View>
+
+      </View>
+
+      <TouchableOpacity 
+        style={styles.button}
+        onPress={startEdit}
+      >
+        <Text style={styles.buttonText}>Edit Profile</Text>
+      </TouchableOpacity>
+      
+      
     </View>
 
     <View style={styles.weekCard}>
       <Text style={styles.weekTitle}>This Week ({weekLabel}) </Text>
       <TouchableOpacity
-      style={styles.refreshBtn}
-      onPress={loadWeeklySessions}
-    >
-      <Text style={styles.refreshBtnText}>Refresh</Text>
-    </TouchableOpacity>
+        style={styles.refreshBtn}
+        onPress={loadWeeklySessions}
+      >
+        <Text style={styles.refreshBtnText}>Refresh</Text>
+      </TouchableOpacity>
 
       {DAYS.map((day) => (
         <View key={day} style={styles.dayRow}>
           <Text style={styles.dayText}>{day}</Text>
           <Text style={styles.countText}>
-            {weeklyCounts[day] || 0} sessions
+            Time studied: {formatDuration(weeklyCounts[day]) || 0}
           </Text>
         </View>
       ))}
@@ -141,6 +323,66 @@ return (
     <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
       <Text style={styles.logoutBtnText}>Log out</Text>
     </TouchableOpacity>
+
+    <Modal
+      animationType='slide'
+      onRequestClose={cancelEdit}
+      transparent
+      visible={editProfileVisible}
+    >
+      <View style={styles.modalBackground}>
+
+        <View style={styles.modalCard}>
+
+          <Text style={styles.modalHeader}>Update Profile</Text>
+
+          <View style={styles.modalAvatarCard}>
+            <Image source={getAvatarSource()} style={styles.modalAvatar}/>
+            <TouchableOpacity 
+              onPress={uploadAvatarImage} 
+              disabled={isUpdating}
+            >
+              {isUpdating ? 
+                <Text style={styles.modalAvatarButton}>Uploading...</Text> :
+                <Text style={styles.modalAvatarButton}>Update Image</Text>
+              }
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.fieldLabel}>Name</Text>
+          <TextInput 
+            style={styles.modalInput}
+            value={editName}
+            onChangeText={setEditName}
+          />
+
+          <Text style={styles.fieldLabel}>Username</Text>
+          <TextInput
+            style={styles.modalInput}
+            value={editUsername}
+            onChangeText={setEditUsername}
+          />
+
+          <View style={styles.modalButton}>
+            <TouchableOpacity
+              onPress={cancelEdit}
+              disabled={isUpdating}
+            >
+              <Text style={styles.modalButtonText}>Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={saveEdit}
+              disabled={isUpdating}
+            >
+              {isUpdating ? <ActivityIndicator/> : <Text style={styles.modalButtonText}>Save Changes</Text>}
+            </TouchableOpacity>
+          </View>
+
+        </View>
+
+      </View>
+    </Modal>
   </View>
 );
 }
@@ -155,20 +397,143 @@ const styles = StyleSheet.create({
   profileCard: {
     backgroundColor: '#1A1F36',
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 
-  profileTitle: {
+  profileInfo: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+
+  profileName: {
     color: '#fff',
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '500',
   },
 
-  profileSubtitle: {
+  profileUsername: {
     color: '#8892B0',
     fontSize: 14,
     marginTop: 6,
+  },
+
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 80/2,
+    borderWidth: 1.5,
+    borderColor: 'dimgray',
+  },
+
+  stats: {
+    flexDirection: 'row',
+  },
+
+  stat: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginTop: 8,
+    fontSize: 14,
+    color: '#8892B0'
+  },
+
+  button: {
+    backgroundColor: '#8892B0',
+    borderRadius: 6,
+    alignSelf: 'flex-end',
+  },
+
+  buttonText: {
+    color: 'white',
+    fontSize: 12,
+    padding: 5,
+  },
+
+  modalBackground: {
+    backgroundColor: '#8892B095',
+    flex: 1,
+  },
+
+  modalCard: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    borderRadius: 16,
+    borderColor: 'dimgray',
+    borderWidth: 2,
+    padding: 20,
+    marginHorizontal: 16,
+    marginVertical: 80,
+  },
+
+  modalHeader: {
+    alignSelf: 'center',
+    fontSize: 28,
+    fontWeight: '500',
+    marginBottom: 20,
+  },
+
+  modalAvatarCard:{
+    alignItems: 'center',
+    margin: 32,
+  },
+
+  modalAvatar: {
+    width: 140,
+    height: 140,
+    borderRadius: 140/2,
+    borderWidth: 2,
+    borderColor: 'dimgray',
+  },
+
+  modalAvatarButton: {
+    fontSize: 14, 
+    padding: 4,
+    borderColor: 'black',
+    borderWidth: 1,
+    borderRadius: 8,
+    margin: 8,
+    backgroundColor: '#e3dfde',
+  },
+
+  fieldLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: 'black',
+    marginTop: 16,
+    marginBottom: 2,
+    width: '95%',
+  },
+
+  modalInput: {
+    borderColor: 'dimgray',
+    borderWidth: 1.5,
+    fontSize: 16,
+    fontWeight: '500',
+    color: 'dimgray',
+    backgroundColor: 'white',
+    marginBottom: 4,
+    padding: 8,
+  },
+
+  modalButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingVertical: 32,
+  },
+
+  modalButtonText: {
+    backgroundColor: '#8892B0',
+    borderRadius: 8,
+    borderColor: 'dimgray',
+    borderWidth: 2,
+    padding: 6,
+    marginHorizontal: 32,
+    marginVertical: 8,
+    fontSize: 14,
   },
 
   weekCard: {
