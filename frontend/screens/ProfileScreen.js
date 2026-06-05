@@ -136,7 +136,7 @@ export default function ProfileScreen({ user, token, onLogout, navigation, onUpd
     }
     catch(err){
       console.log('ERROR: could not accept friend request');
-      Alert.alert('server error', 'could not reach server'); 
+      Alert.alert('server error', 'could not reach server');
     }
   }
 
@@ -158,7 +158,8 @@ export default function ProfileScreen({ user, token, onLogout, navigation, onUpd
       Alert.alert('server error', 'could not reach server');
     }
   }
-  
+
+
   function getAvatarSource() {
     if(previewURI) 
       return {uri: previewURI};
@@ -347,7 +348,7 @@ return (
 
         <View style={styles.stats}>
           <TouchableOpacity onPress={() => navigation.navigate('Friends')}>
-            <Text style={styles.stat}>{friendCount} Friends</Text>
+            <Text style={styles.stat}>{friendCount} {friendCount === 1 ? "Friend" : "Friends"}</Text>
           </TouchableOpacity>
         </View>
 
@@ -372,14 +373,17 @@ return (
         <Text style={styles.refreshBtnText}>Refresh</Text>
       </TouchableOpacity>
 
-      {DAYS.map((day) => (
-        <View key={day} style={styles.dayRow}>
-          <Text style={styles.dayText}>{day}</Text>
-          <Text style={styles.countText}>
-            Time studied: {formatDuration(weeklyCounts[day]) || 0}
-          </Text>
-        </View>
-      ))}
+      {DAYS.map((day) => {
+        const isToday = day === DAYS[new Date().getDay()];
+        return (
+          <View key={day} style={[styles.dayRow, isToday && styles.dayRowToday]}>
+            <Text style={[styles.dayText, isToday && styles.dayTextToday]}>{day}</Text>
+            <Text style={styles.countText}>
+              Time studied: {formatDuration(weeklyCounts[day]) || 0}
+            </Text>
+          </View>
+        );
+      })}
     </View>
 
     <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
@@ -703,6 +707,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#1A1F36',
+  },
+
+  dayRowToday: {
+    backgroundColor: '#EAF4FF',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+  },
+
+  dayTextToday: {
+    color: '#4A90D9',
+    fontWeight: '700',
   },
 
   countText: {

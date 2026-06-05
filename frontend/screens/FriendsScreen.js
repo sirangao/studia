@@ -7,6 +7,8 @@ import FriendProfile from '../components/FriendProfile';
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 const DEFAULT_AVATAR = require('../assets/default-avatar.png');
 
+//while on friends screen, update friends list every five seconds
+//and display their profile
 export default function FriendsScreen({ user, token }) {
   const [friends, setFriends] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,7 +40,7 @@ export default function FriendsScreen({ user, token }) {
       return;
     }
 
-    if(debounceRef.current){ 
+    if(debounceRef.current){
       clearTimeout(debounceRef.current);
     }
 
@@ -64,7 +66,7 @@ export default function FriendsScreen({ user, token }) {
 
   if(userSelected){
     return (
-      <FriendProfile 
+      <FriendProfile
         user={user}
         friend={userSelected}
         token={token}
