@@ -42,7 +42,15 @@ export default function App() {
     >
         <Tab.Screen name="Home">{props => <HomeScreen {...props} user={user} token={token} />}</Tab.Screen>
         <Tab.Screen name="Friends">{props => <FriendsScreen {...props} user={user} token={token} />}</Tab.Screen>
-        <Tab.Screen name="Profile">{props => <ProfileScreen {...props} user={user} token={token} onLogout={() => { setUser(null); setToken(null); }} />}</Tab.Screen>
+        <Tab.Screen name="Profile">{props => 
+          <ProfileScreen 
+            {...props} 
+            user={user} 
+            token={token} 
+            onLogout={() => { setUser(null); setToken(null); }} 
+            onUpdateUser={setUser}
+          />}
+        </Tab.Screen>
       </Tab.Navigator>
     </NavigationContainer>
   );
