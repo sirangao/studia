@@ -11,7 +11,7 @@ export default function FriendProfile({ user, friend, token, exitProfile}){
     useEffect(() => {
         const loadFriends = async () => {
             try{
-                const data = await fetch(`${API_URL}/friends/profile/${friend.id}`, { // TODO
+                const data = await fetch(`${API_URL}/friends/profile/${friend.id}`, {
                 headers: { 'Authorization': `Bearer ${token}` },
                 });
                 const profile = await data.json();
