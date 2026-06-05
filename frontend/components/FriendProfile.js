@@ -75,6 +75,31 @@ export default function FriendProfile({ user, friend, token, exitProfile}){
         }
     }
 
+    async function removeFriend() {
+        Alert.alert('Remove Friend', `Remove ${friendProfile.user.name}?`, [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Remove', style: 'destructive', onPress: async () => {
+                setSendingRequest(true);
+                try {
+                    const data = await fetch(`${API_URL}/friends/remove`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({ friendId: friend.id }),
+                    });
+                    if (!data.ok) throw new Error('Could not remove friend');
+                    setFriendProfile(prev => ({ ...prev, status: null }));
+                } catch (err) {
+                    Alert.alert('Error', 'Could not remove friend');
+                } finally {
+                    setSendingRequest(false);
+                }
+            }},
+        ]);
+    }
+
     let buttonText = 'Request Friend';
     let disableButton = false;
     const buttonHandler = (friendProfile.status === 'pending' && !friendProfile.isRequester) ? acceptFriendRequest : sendFriendRequest;
@@ -101,17 +126,17 @@ export default function FriendProfile({ user, friend, token, exitProfile}){
             </TouchableOpacity>
 
             <View style={styles.profileCard}>
-                <Image 
+                <Image
                     style={styles.profileAvatar}
                     source={friendProfile.user.avatar_url ? {uri: friendProfile.user.avatar_url} : DEFAULT_AVATAR}
                 />
 
                 <View style={styles.profileInfo}>
-                
-                    <Text style={styles.profileName}>{friendProfile.user.name}</Text>
-                    <Text style={styles.profileUsername}>@{friendProfile.user.username}</Text>
+
+                    <Text style={styles.profileName} numberOfLines={1}>{friendProfile.user.name}</Text>
+                    <Text style={styles.profileUsername} numberOfLines={1}>@{friendProfile.user.username}</Text>
                     <Text style={styles.profileStat}>{friendProfile.friendCount} Friends</Text>
-                
+
                 </View>
             </View>
 
@@ -122,6 +147,16 @@ export default function FriendProfile({ user, friend, token, exitProfile}){
             >
                 <Text style={styles.reqButtonText}>{buttonText}</Text>
             </TouchableOpacity>
+
+            {friendProfile.status === 'accepted' && (
+                <TouchableOpacity
+                    onPress={removeFriend}
+                    disabled={sendingRequest}
+                    style={styles.removeButton}
+                >
+                    <Text style={styles.removeButtonText}>Remove Friend</Text>
+                </TouchableOpacity>
+            )}
         </View>
     );
 }
@@ -206,6 +241,23 @@ const styles = StyleSheet.create({
 
     reqButtonText: {
         color: '#fff',
+        fontSize: 16,
+        fontWeight: '700',
+    },
+
+    removeButton: {
+        marginHorizontal: 16,
+        marginTop: 10,
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        paddingVertical: 14,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E05252',
+    },
+
+    removeButtonText: {
+        color: '#E05252',
         fontSize: 16,
         fontWeight: '700',
     },

@@ -145,6 +145,25 @@ router.post('/decline', async (req, res) => {
   }
 });
 
+// POST /friends/remove
+router.post('/remove', async (req, res) => {
+  const userId = req.user.id;
+  const { friendId } = req.body;
+  if (!friendId) return res.status(400).json({ error: 'friendId is required' });
+
+  try {
+    const friendship = await friendshipRepo.findByPair(userId, friendId);
+    if (!friendship || friendship.status !== 'accepted')
+      return res.status(404).json({ error: 'Friendship not found' });
+
+    await friendshipRepo.deleteFriendship(userId, friendId);
+    res.json({ message: 'Friend removed' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
 // GET /friends/:userId
 router.get('/:userId', async (req, res) => {
   console.log('GET /friends/:userId', req.params.userId);
