@@ -17,7 +17,7 @@ export default function FriendCard({ username, name, hoursStudied, avatarURL}){
       
       <View style={styles.columnText}>
 
-        <Text style={styles.name}>
+        <Text style={styles.name} numberOfLines={1}>
           {name} | @{username}
         </Text>
         
@@ -51,7 +51,8 @@ const styles = StyleSheet.create({
   },
   columnText: {
     justifyContent: 'center',
-    alignItems: 'flex-start'
+    alignItems: 'flex-start',
+    flex: 1,
   },
   name: {
     fontWeight: 'bold',

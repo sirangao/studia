@@ -140,3 +140,46 @@ describe('GET /friends/:userId', () => {
     expect(res.statusCode).toBe(403)
   })
 })
+
+describe('POST /friends/remove', () => {
+  test('removes an accepted friend successfully', async () => {
+    friendshipRepo.findByPair.mockResolvedValue({ status: 'accepted' })
+    friendshipRepo.deleteFriendship.mockResolvedValue()
+
+    const res = await request(app)
+      .post('/friends/remove')
+      .set('Authorization', `Bearer ${token1}`)
+      .send({ friendId: 2 })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body.message).toBe('Friend removed')
+  })
+
+  test('returns 404 when no accepted friendship exists', async () => {
+    friendshipRepo.findByPair.mockResolvedValue(null)
+
+    const res = await request(app)
+      .post('/friends/remove')
+      .set('Authorization', `Bearer ${token1}`)
+      .send({ friendId: 2 })
+
+    expect(res.statusCode).toBe(404)
+  })
+
+  test('returns 400 when friendId is missing', async () => {
+    const res = await request(app)
+      .post('/friends/remove')
+      .set('Authorization', `Bearer ${token1}`)
+      .send({})
+
+    expect(res.statusCode).toBe(400)
+  })
+
+  test('returns 401 without token', async () => {
+    const res = await request(app)
+      .post('/friends/remove')
+      .send({ friendId: 2 })
+
+    expect(res.statusCode).toBe(401)
+  })
+})

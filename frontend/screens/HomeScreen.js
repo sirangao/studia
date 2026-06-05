@@ -80,7 +80,7 @@ function SessionCard({ session, editMode, onDelete }) {
         <Text style={styles.sessionSubject}>{session.subject}</Text>
 
         {editMode && !isActive ? (
-          <TouchableOpacity style={styles.pillRemove} onPress={() => onDelete(session.id)}>
+          <TouchableOpacity style={styles.pillRemove} onPress={() => onDelete(session.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={styles.pillRemoveText}>✕</Text>
           </TouchableOpacity>
         ) : (

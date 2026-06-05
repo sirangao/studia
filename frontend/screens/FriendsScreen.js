@@ -128,12 +128,14 @@ export default function FriendsScreen({ user, token }) {
         data={friends}
         keyExtractor={(item) => String(item.id)}
         renderItem={({item}) => (
-          <FriendCard
-            username={item.username}
-            name={item.name}
-            hoursStudied={item.hoursStudied}
-            avatarURL={item.avatar_url}
-          />
+          <TouchableOpacity onPress={() => openProfile(item)}>
+            <FriendCard
+              username={item.username}
+              name={item.name}
+              hoursStudied={item.hoursStudied}
+              avatarURL={item.avatar_url}
+            />
+          </TouchableOpacity>
         )}
         showsVerticalScrollIndicator={false}
       />

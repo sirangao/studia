@@ -4,6 +4,9 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
   ActivityIndicator,
   Alert,
   TouchableOpacity,
@@ -321,7 +324,26 @@ export default function ProfileScreen({ user, token, onLogout, navigation, onUpd
       setIsUpdating(false);
     }
   }
-    
+
+  async function removeAvatar() {
+    setIsUpdating(true);
+    try {
+      const data = await fetch(`${API_URL}/auth/avatar`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const result = await data.json();
+      if (!data.ok) throw new Error('Remove avatar failed');
+      onUpdateUser(result.user);
+      setPreviewURI(null);
+    } catch(err) {
+      console.error('Remove avatar error:', err);
+      Alert.alert('Error', 'Could not remove photo');
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -331,6 +353,7 @@ export default function ProfileScreen({ user, token, onLogout, navigation, onUpd
   }
 return (
   <View style={styles.container}>
+  <ScrollView>
 
     <TouchableOpacity style={styles.notificationCard} onPress={() => setFriendRequestsVisible(true)}>
       <Text style={styles.notificationText}>🔔 Friend Requests</Text>
@@ -393,6 +416,8 @@ return (
       <Text style={styles.logoutBtnText}>Log out</Text>
     </TouchableOpacity>
 
+  </ScrollView>
+
     <Modal
       animationType='slide'
       onRequestClose={cancelEdit}
@@ -400,26 +425,33 @@ return (
       visible={editProfileVisible}
     >
       <View style={styles.modalBackground}>
-
-        <View style={styles.modalCard}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalCard}>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
           <Text style={styles.modalHeader}>Update Profile</Text>
 
           <View style={styles.modalAvatarCard}>
             <Image source={getAvatarSource()} style={styles.modalAvatar}/>
-            <TouchableOpacity 
-              onPress={uploadAvatarImage} 
+            <TouchableOpacity
+              style={styles.modalAvatarButton}
+              onPress={uploadAvatarImage}
               disabled={isUpdating}
             >
-              {isUpdating ? 
-                <Text style={styles.modalAvatarButton}>Uploading...</Text> :
-                <Text style={styles.modalAvatarButton}>Update Image</Text>
-              }
+              <Text style={styles.modalAvatarButtonText}>{isUpdating ? 'Uploading...' : 'Update Image'}</Text>
             </TouchableOpacity>
+            {(user.avatar_url || previewURI) && (
+              <TouchableOpacity
+                style={styles.removeAvatarButton}
+                onPress={removeAvatar}
+                disabled={isUpdating}
+              >
+                <Text style={styles.removeAvatarButtonText}>Remove Photo</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <Text style={styles.fieldLabel}>Name</Text>
-          <TextInput 
+          <TextInput
             style={styles.modalInput}
             value={editName}
             onChangeText={setEditName}
@@ -434,22 +466,24 @@ return (
 
           <View style={styles.modalButton}>
             <TouchableOpacity
+              style={styles.cancelButton}
               onPress={cancelEdit}
               disabled={isUpdating}
             >
-              <Text style={styles.modalButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
+              style={styles.saveButton}
               onPress={saveEdit}
               disabled={isUpdating}
             >
-              {isUpdating ? <ActivityIndicator/> : <Text style={styles.modalButtonText}>Save Changes</Text>}
+              {isUpdating ? <ActivityIndicator color="#fff"/> : <Text style={styles.saveButtonText}>Save Changes</Text>}
             </TouchableOpacity>
           </View>
 
-        </View>
-
+          </ScrollView>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
 
@@ -472,9 +506,9 @@ return (
               <View style={styles.profileCardFriend}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Image source={item.avatar_url ? { uri: item.avatar_url } : DEFAULT_AVATAR} style={styles.avatar} />
-                  <View style={{ paddingHorizontal: 12 }}>
-                    <Text style={styles.friendRequestName}>{item.name}</Text>
-                    <Text style={styles.profileUsername}>@{item.username}</Text>
+                  <View style={{ paddingHorizontal: 12, flex: 1 }}>
+                    <Text style={styles.friendRequestName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={styles.profileUsername} numberOfLines={1}>@{item.username}</Text>
                   </View>
                 </View>
 
@@ -507,13 +541,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F2F4F8',
-    padding: 16,
+    paddingTop: 16,
   },
 
   notificationCard: {
     backgroundColor: '#EAF4FF',
     borderRadius: 12,
     padding: 14,
+    marginHorizontal: 16,
+    marginTop: 16,
     marginBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -548,6 +584,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1A1F36',
     borderRadius: 16,
     padding: 16,
+    marginHorizontal: 16,
     marginBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -566,6 +603,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#1A1F36',
+    flexShrink: 1,
   },
 
   acceptButton: {
@@ -639,9 +677,9 @@ const styles = StyleSheet.create({
   avatar: {
     width: 80,
     height: 80,
-    borderRadius: 80/2,
+    borderRadius: 40,
     borderWidth: 1.5,
-    borderColor: 'dimgray',
+    borderColor: '#E0E4EF',
   },
 
   stats: {
@@ -657,15 +695,17 @@ const styles = StyleSheet.create({
   },
 
   button: {
-    backgroundColor: '#8892B0',
-    borderRadius: 6,
+    backgroundColor: '#4A90D9',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
     alignSelf: 'flex-end',
   },
 
   buttonText: {
-    color: 'white',
-    fontSize: 12,
-    padding: 5,
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
   },
 
   modalBackground: {
@@ -685,8 +725,9 @@ const styles = StyleSheet.create({
 
   modalHeader: {
     alignSelf: 'center',
-    fontSize: 28,
-    fontWeight: '500',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1F36',
     marginBottom: 20,
   },
 
@@ -698,62 +739,97 @@ const styles = StyleSheet.create({
   modalAvatar: {
     width: 140,
     height: 140,
-    borderRadius: 140/2,
+    borderRadius: 70,
     borderWidth: 2,
-    borderColor: 'dimgray',
+    borderColor: '#E0E4EF',
   },
 
   modalAvatarButton: {
-    fontSize: 14, 
-    padding: 4,
-    borderColor: 'black',
+    marginTop: 10,
+    backgroundColor: '#F2F4F8',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderWidth: 1,
-    borderRadius: 8,
-    margin: 8,
-    backgroundColor: '#e3dfde',
+    borderColor: '#E0E4EF',
+  },
+
+  modalAvatarButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1F36',
+  },
+
+  removeAvatarButton: {
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+  },
+
+  removeAvatarButtonText: {
+    fontSize: 13,
+    color: '#E05252',
+    fontWeight: '600',
   },
 
   fieldLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'black',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1F36',
     marginTop: 16,
-    marginBottom: 2,
-    width: '95%',
+    marginBottom: 6,
   },
 
   modalInput: {
-    borderColor: 'dimgray',
-    borderWidth: 1.5,
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'dimgray',
-    backgroundColor: 'white',
+    borderColor: '#E0E4EF',
+    borderWidth: 1,
+    borderRadius: 10,
+    fontSize: 15,
+    color: '#1A1F36',
+    backgroundColor: '#F8F9FC',
+    padding: 10,
     marginBottom: 4,
-    padding: 8,
   },
 
   modalButton: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    paddingVertical: 32,
+    gap: 10,
+    marginTop: 24,
   },
 
-  modalButtonText: {
-    backgroundColor: '#8892B0',
-    borderRadius: 8,
-    borderColor: 'dimgray',
-    borderWidth: 2,
-    padding: 6,
-    marginHorizontal: 32,
-    marginVertical: 8,
-    fontSize: 14,
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#F2F4F8',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+
+  cancelButtonText: {
+    color: '#1A1F36',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+
+  saveButton: {
+    flex: 1,
+    backgroundColor: '#4A90D9',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
   },
 
   weekCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
+    marginHorizontal: 16,
   },
 
   weekTitle: {
@@ -809,6 +885,7 @@ const styles = StyleSheet.create({
 
   logoutBtn: {
     marginTop: 16,
+    marginHorizontal: 16,
     backgroundColor: '#fff',
     borderRadius: 12,
     paddingVertical: 14,
