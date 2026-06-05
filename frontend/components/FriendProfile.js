@@ -101,7 +101,7 @@ export default function FriendProfile({ user, friend, token, exitProfile}){
                 onPress={exitProfile}
                 style={styles.exitButton}
             >
-                <Text style={styles.exitText}>X</Text>
+                <Text>X</Text>
             </TouchableOpacity>
 
             <View style={styles.profileCard}>
@@ -135,18 +135,23 @@ const styles = StyleSheet.create({
     },
 
     exitButton:{
-
-    },
-
-    exitText: {
-        
+        fontSize: 18,
+        borderWidth: 1,
+        borderColor: 'black',
+        borderRadius: 18,
+        alignSelf: 'flex-start',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        margin: 4,
+        backgroundColor: '#b4b4b4',
     },
 
     profileCard: {
         backgroundColor: '#1A1F36',
         borderRadius: 16,
         padding: 16,
-        marginBottom: 16,
+        marginHorizontal: 16,
+        marginVertical: 8,
         flexDirection: 'row',
         alignItems: 'center',
     },
@@ -185,6 +190,12 @@ const styles = StyleSheet.create({
     },
 
     reqButtonText: {
-
+        alignSelf: 'center',
+        borderWidth: 1,
+        borderRadius: 8,
+        borderColor: 'black',
+        backgroundColor: '#8892B0',
+        padding: 4,
+        margin: 4,
     },
 });

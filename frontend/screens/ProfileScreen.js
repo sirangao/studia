@@ -462,20 +462,24 @@ return (
             data={friendRequests}
             keyExtractor={(item) => String(item.id)}
             renderItem={({item}) => (
-              <View>
-                <Image source={item.avatar_url ? { uri: item.avatar_url } : DEFAULT_AVATAR} style={styles.avatar} />
-                <View>
-                  <Text>{item.name}</Text>
-                  <Text>@{item.username}</Text>
+              <View style={styles.profileCardFriend}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Image source={item.avatar_url ? { uri: item.avatar_url } : DEFAULT_AVATAR} style={styles.avatar} />
+                  <View style={{padding: 12}}>
+                    <Text style={styles.profileName}>{item.name}</Text>
+                    <Text style={styles.profileUsername}>@{item.username}</Text>
+                  </View>
                 </View>
 
-                <TouchableOpacity onPress={() => acceptRequest(item.id)}>
-                  <Text>Accept</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
+                  <TouchableOpacity onPress={() => acceptRequest(item.id)}>
+                    <Text style={styles.modalButtonText}>Accept</Text>
+                  </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => declineRequest(item.id)}>
-                  <Text>Decline</Text>
-                </TouchableOpacity>
+                  <TouchableOpacity onPress={() => declineRequest(item.id)}>
+                    <Text style={styles.modalButtonText}>Decline</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
             ListEmptyComponent={<Text>No Friend Requests</Text>}
@@ -528,6 +532,15 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  profileCardFriend: {
+    backgroundColor: '#1A1F36',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: 'column',
     alignItems: 'center',
   },
 

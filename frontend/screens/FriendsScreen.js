@@ -92,11 +92,29 @@ export default function FriendsScreen({ user, token }) {
               keyExtractor={(item) => String(item.id)}
               renderItem={({item}) => (
                 <TouchableOpacity onPress={() => openProfile(item)}>
-                  <Image source={item.avatar_url ? { uri: item.avatar_url } : DEFAULT_AVATAR} style={styles.avatar}/>
+                  {/* <Image source={item.avatar_url ? { uri: item.avatar_url } : DEFAULT_AVATAR} style={styles.avatar}/>
                   <View>
                     <Text>{item.name}</Text>
                     <Text>@{item.username}</Text>
+                  </View> */}
+
+                <View style={styles.card}>
+
+                
+                  <View style={styles.buffer}>
+                    <Image
+                      source={item.avatar_url ? { uri: item.avatar_url } : DEFAULT_AVATAR}
+                      style={styles.avatar}
+                    />
                   </View>
+                  
+                  <View style={styles.columnText}>
+            
+                    <Text style={styles.name}>
+                      {item.name} | @{item.username}
+                    </Text>
+                  </View>
+                </View>
                 </TouchableOpacity>
               )}
             />
@@ -143,11 +161,34 @@ const styles = StyleSheet.create({
       paddingHorizontal: 10,
     },
     list: { paddingVertical: 8 },
-    avatar: {
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'white',
+      marginHorizontal: 10,
+      marginTop: 10,
+      borderRadius: 15,
+    },
+  avatar: {
     width: 80,
     height: 80,
     borderRadius: 80/2,
     borderWidth: 1.5,
     borderColor: 'dimgray',
   },
+  buffer: {
+    padding: 8
+  },
+  columnText: {
+    justifyContent: 'center',
+    alignItems: 'flex-start'
+  },
+  name: {
+    fontWeight: 'bold',
+    fontSize: 18
+  },
+  subtitle: {
+    color: 'dimgray',
+    fontSize: 14
+  }
 });
