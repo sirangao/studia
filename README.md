@@ -89,8 +89,8 @@ graph TD
     end
 
     APP -->|user + token| HS
-    APP --> FS
-    APP --> PS
+    APP -->|user + token| FS
+    APP -->|user + token| PS
 
     LS -->|POST /auth/register<br/>POST /auth/login| AUTH
     HS -->|POST /sessions/start<br/>POST /sessions/stop<br/>GET /sessions/:id| SESS
