@@ -124,3 +124,21 @@ describe('GET /sessions/:userId', () => {
     expect(res.statusCode).toBe(403)
   })
 })
+
+describe('DELETE /sessions/:sessionId', () => {
+  test('deletes a session successfully', async () => {
+    sessionRepo.deleteById.mockResolvedValue()
+
+    const res = await request(app)
+      .delete('/sessions/1')
+      .set('Authorization', `Bearer ${token1}`)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body.message).toBe('Session deleted')
+  })
+
+  test('returns 401 without token', async () => {
+    const res = await request(app).delete('/sessions/1')
+    expect(res.statusCode).toBe(401)
+  })
+})

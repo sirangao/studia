@@ -71,7 +71,7 @@ function formatLiveTime(ms) {
 }
 
 
-function SessionCard({ session }) {
+function SessionCard({ session, editMode, onDelete }) {
   const isActive = session.active;
 
   return (
@@ -79,9 +79,15 @@ function SessionCard({ session }) {
       <View style={styles.sessionCardRow}>
         <Text style={styles.sessionSubject}>{session.subject}</Text>
 
-        <Text style={[styles.sessionDuration, isActive && styles.sessionDurationActive]}>
-          {isActive ? '🟢 Live' : `Duration: ${formatDuration(session.duration)}`}
-        </Text>
+        {editMode && !isActive ? (
+          <TouchableOpacity style={styles.pillRemove} onPress={() => onDelete(session.id)}>
+            <Text style={styles.pillRemoveText}>✕</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={[styles.sessionDuration, isActive && styles.sessionDurationActive]}>
+            {isActive ? '🟢 Live' : `Duration: ${formatDuration(session.duration)}`}
+          </Text>
+        )}
       </View>
 
       <Text style={styles.sessionDate}>
@@ -111,6 +117,9 @@ export default function HomeScreen({ user, token }) {
 
   const [loading, setLoading] = useState(true);
   const [sessionLoading, setSessionLoading] = useState(false);
+
+  //edit mode for deleting sessions
+  const [editMode, setEditMode] = useState(false);
 
   //session ending/note adding states
   const [showEndNotes, setShowEndNotes] = useState(false);
@@ -309,6 +318,18 @@ export default function HomeScreen({ user, token }) {
     setPendingNoteInputTime(endTime);
     setLiveElapsedTime(new Date(endTime) - new Date(activeSession.startTime));
     setShowEndNotes(true);
+  }
+
+  async function handleDeleteSession(sessionId) {
+    try {
+      await fetch(`${API_URL}/sessions/${sessionId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      await fetchSessions();
+    } catch (err) {
+      console.error('Delete session error:', err);
+    }
   }
 
   function handleAddClass() {
@@ -556,8 +577,8 @@ export default function HomeScreen({ user, token }) {
               <Text style={styles.sectionTitle}>Study Log</Text>
 
               {!loading && (
-                <TouchableOpacity onPress={fetchSessions}>
-                  <Text style={styles.sectionAction}>Refresh</Text>
+                <TouchableOpacity onPress={() => setEditMode(e => !e)}>
+                  <Text style={styles.sectionAction}>{editMode ? 'Done' : 'Edit'}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -573,7 +594,7 @@ export default function HomeScreen({ user, token }) {
             )}
           </>
         }
-        renderItem={({ item }) => <SessionCard session={item} />}
+        renderItem={({ item }) => <SessionCard session={item} editMode={editMode} onDelete={handleDeleteSession} />}
         contentContainerStyle={styles.listContent}
       />
     </SafeAreaView>
@@ -654,11 +675,11 @@ const styles = StyleSheet.create({
   },
 
   sessionBtnStop: {
-    backgroundColor: '#E05252',
+    backgroundColor: '#4A90D9',
   },
 
   sessionBtnCancel: {
-    backgroundColor: '#8892B0',
+    backgroundColor: '#E05252',
   },
 
   sessionBtnText: {

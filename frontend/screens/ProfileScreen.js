@@ -226,7 +226,7 @@ export default function ProfileScreen({ user, token, onLogout, navigation, onUpd
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1,1],
-      quality: 1,
+      quality: .4,
     });
     if(result.canceled) return;
 

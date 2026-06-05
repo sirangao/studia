@@ -67,4 +67,18 @@ if (parseInt(userId) !== req.user.id) {
   }
 });
 
+// DELETE /sessions/:sessionId
+router.delete('/:sessionId', async (req, res) => {
+  const userId = req.user.id;
+  const { sessionId } = req.params;
+
+  try {
+    await sessionRepo.deleteById(sessionId, userId)
+    res.json({ message: 'Session deleted' })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Database error' })
+  }
+});
+
 module.exports = router;
