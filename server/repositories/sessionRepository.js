@@ -22,7 +22,7 @@ async function findActiveByUserId(userId) {
 async function create({ userId, subject, startTime }) {
   const { data, error } = await supabase
     .from('sessions')
-    .insert({ user_id: userId, subject, start_time: startTime, end_time: null, duration: null, active: true })
+    .insert({ user_id: userId, subject, start_time: startTime, active: true })
     .select().single()
   if (error) throw error
   return normalize(data)

@@ -57,6 +57,7 @@ router.post('/login', async (req, res) => {
 
   try {
     const user = await userRepo.findByUsername(username)
+    console.log('found user:', user)
     if (!user) return res.status(401).json({ error: 'Invalid credentials' })
 
     const passwordMatches = await bcrypt.compare(password, user.password)

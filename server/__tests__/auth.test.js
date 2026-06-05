@@ -37,13 +37,45 @@ describe('POST /auth/register', () => {
   });
 
   test('returns 409 when username is already taken', async () => {
-    
+
     userRepo.findByUsername.mockResolvedValue({id: 1})
     const res = await request(app)
       .post('/auth/register')
       .send({ username: 'alice', password: 'pass123', name: 'Alice Again' });
 
     expect(res.statusCode).toBe(409);
+  });
+
+  test('returns 400 when name is missing', async () => {
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ username: 'testuser', password: 'pass123' });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  test('does not return password in response', async () => {
+    userRepo.findByUsername.mockResolvedValue(null)
+    userRepo.create.mockResolvedValue({ id: 1, username: 'testuser', password: 'hashed', name: 'Test' });
+
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ username: 'testuser', password: 'pass123', name: 'Test' });
+
+    expect(res.body.user.password).toBeUndefined();
+  });
+
+  test('returns a JWT token on successful register', async () => {
+    userRepo.findByUsername.mockResolvedValue(null)
+    userRepo.create.mockResolvedValue({ id: 99, username: 'newuser', password: 'hashed', name: 'New' });
+
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ username: 'newuser', password: 'pass123', name: 'New' });
+
+    expect(res.statusCode).toBe(201);
+    const decoded = jwt.verify(res.body.token, process.env.JWT_SECRET);
+    expect(decoded.id).toBe(99);
   });
 });
 
