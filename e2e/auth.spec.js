@@ -44,29 +44,34 @@ await expect(page.getByText(/Hey,/)).toHaveCount(0);
 await expect(page.getByPlaceholder('Username')).toBeVisible();
 });
 
-//BELOW IS WIP, WAITING FOR TREVOR AND ANDREW'S FINALIZATION.
 
-// test('starts and ends study session thru UI',
-//     async({page})=>{
-//         test.setTimeout(60_000);
-//     const sessionUser = `e2e_sess_${Date.now()}`;
-//     const api = await request.newContext({baseURL: API_BASE});
-//     await api.post('/auth/register', {data: {username: sessionUser, password, name}});
-//     const{token}=await(await api.post('/auth/login',
-//         {data: {username: sessionUser, password}})).json();
+test('starts and ends study session thru UI',
+    async({page})=>{
+        test.setTimeout(60_000);
 
-//     await api.put('/profile/classes', {
-//         headers: {Authorizaton: `Bearer ${token}`},
-//         data: {classes: ['CS 35L']},
-// });
-// await api.dispose();
-// await page.goto('/');
-// await page.getByPlaceholder('Username').fill(sessionUser);
-// await page.getByPlaceholder('Password').fill(password);
-// await page.getByText('Log in').last().click();
+//log in as already-registered user from first test
+    await page.goto('/');
+    await page.getByPlaceholder('Username').fill(username);
+    await page.getByPlaceholder('Password').fill(password);
+    await page.getByText('Log in').last().click();
+    await expect(page.getByText(/Hey,/)).toBeVisible();
+    
+//add a class to profile
+    await page.getByText('Edit').first().click();
+    await page.getByPlaceholder('Add a class').fill('CS 35L');
 
-// await expect(page.getByText(/Hey,/)).toBeVisible();
-// await page.getByText('Start Study Session').click();
-// await page.getByPlaceholder('What are you studying').fill('CS 35L');
+    const classSaved = page.waitForResponse((r)=>r.url().includes('/profile/classes') && r.request().method()==='PUT');
+    await page.getByText('Add', {exact: true}).click();
+    await classSaved; //make sure class actually saves
 
-//     });
+//start a session
+    await page.getByText('Start Study Session').click();
+    await expect(page.getByText('What are you studying?')).toBeVisible();
+    const modalCard = page.locator('div')
+    .filter({hasText: 'What are you studying?'})
+    .filter({hasText: 'CS 35L'})
+    .last();
+    await modalCard.getByText('CS 35L').click();
+    await expect(page.getByText(/Studying:/)).toBeVisible();
+    await page.waitForTimeout(2000); //studies for a bit
+    });
