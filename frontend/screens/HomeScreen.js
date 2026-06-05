@@ -324,14 +324,15 @@ export default function HomeScreen({ user, token }) {
   }
 
   async function handleDeleteSession(sessionId) {
+    setSessions(prev => prev.filter(s => s.id !== sessionId));
     try {
       await fetch(`${API_URL}/sessions/${sessionId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      await fetchSessions();
     } catch (err) {
       console.error('Delete session error:', err);
+      await fetchSessions();
     }
   }
 
