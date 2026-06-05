@@ -36,16 +36,34 @@ async function accept(userId, friendId) {
   return data
 }
 
-async function findAcceptedByUserId(userId) {
-  const { data: low, error: e1 } = await supabase
-    .from('friendships').select('user_id_low, user_id_high').eq('user_id_low', Number(userId)).eq('status', 'accepted')
-  if (e1) throw e1
+async function findAcceptedByUserId(userId) { 
+  const { data, error } = await supabase 
+    .from('friendships')
+    .select('user_id_low, user_id_high')
+    .eq('status', 'accepted')
+    .or(`user_id_low.eq.${Number(userId)},user_id_high.eq.${Number(userId)}`)
 
-  const { data: high, error: e2 } = await supabase
-    .from('friendships').select('user_id_low, user_id_high').eq('user_id_high', Number(userId)).eq('status', 'accepted')
-  if (e2) throw e2
-
-  return [...low, ...high]
+  if (error) throw error
+  return data
 }
 
-module.exports = { findByPair, findPendingByPair, create, accept, findAcceptedByUserId }
+async function findFriendRequests(userId){ 
+  const { data, error } = await supabase
+      .from('friendships')
+      .select('user_id_low, user_id_high, requester_id')
+      .eq('status', 'pending')
+      .neq('requester_id', Number(userId))
+      .or(`user_id_low.eq.${Number(userId)},user_id_high.eq.${Number(userId)}`)
+
+    if (error) throw error
+    return data
+}
+
+async function deleteFriendship(userId, friendId){
+  const [low_id, high_id] = lowBeforeHigh(userId, friendId);
+  const { data, error } = await supabase  
+    .from('friendships').delete().eq('user_id_low', low_id).eq('user_id_high', high_id)
+  if(error) throw error
+}
+
+module.exports = { findByPair, findPendingByPair, create, accept, findAcceptedByUserId, findFriendRequests, deleteFriendship }

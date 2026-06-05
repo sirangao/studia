@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const userRepo = require('../repositories/userRepository')
-const friendshipRepo = require('../repositories/friendshipRepository')
+const friendshipRepo = require('../repositories/friendshipRepository');
 
 // GET /friends/search?username=xxx
 router.get('/search', async (req, res) => {
@@ -53,6 +53,47 @@ router.post('/add', async (req, res) => {
   }
 });
 
+// GET /friends/requests
+router.get('/requests', async(req, res) => {
+  const userId = req.user.id;
+  try{
+    const requests = await friendshipRepo.findFriendRequests(userId);
+    const requestIds = requests.map(r => r.requester_id);
+    const requesters = await userRepo.findManyByIds(requestIds);
+    res.json({requests: requesters});
+  }
+  catch(err){
+    console.error(err);
+    return res.status(500).json({error: 'Database error'});
+  }
+});
+
+// GET /friends/profile/:userId
+router.get('/profile/:userId', async (req, res) => {
+  const userId = req.user.id;
+  const friendId = req.params.userId;
+
+  try{
+    const [friend, friendship, friendsOfFriend] = await Promise.all([ 
+      userRepo.findById(friendId),
+      friendshipRepo.findByPair(userId, friendId),
+      friendshipRepo.findAcceptedByUserId(friendId),
+    ]);
+    if(!friend)
+      return res.status(400).json({error: 'Friend ID not found'}); 
+    const {password: _, ...safeUser} = friend;
+   
+    res.json({user: safeUser, status: friendship?.status || null, 
+      isRequester: friendship ? Number(friendship.requester_id) === Number(userId) : false, 
+      friendCount: friendsOfFriend.length
+    });
+  }
+  catch(err){
+    console.error(err);
+    return res.status(500).json({error: 'Database error'});
+  }
+})
+
 // POST /friends/accept
 router.post('/accept', async (req, res) => {
   const userId = req.user.id;
@@ -78,6 +119,29 @@ router.post('/accept', async (req, res) => {
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Database error' })
+  }
+});
+
+// POST /friends/decline
+router.post('/decline', async (req, res) => {
+  const userId = req.user.id;
+  const { friendId } = req.body;
+  if (!friendId) {
+    return res.status(400).json({ error: 'friendId is required' });
+  }
+
+  try{
+    const request = await friendshipRepo.findPendingByPair(userId, friendId);
+    if (!request || request.status !== 'pending') return res.status(404).json({ error: 'Pending request not found' })
+    if(Number(request.requester_id) === Number(userId))
+      return res.status(400).json({error: 'Cannot decline your own request'})
+    
+    await friendshipRepo.deleteFriendship(userId, friendId);
+    res.json({message: 'Friend request declined'});
+  }
+  catch(err){
+    console.error(err);
+    return res.status(500).json({error: 'Database error'});
   }
 });
 
