@@ -5,11 +5,14 @@ Studia is a social productivity application designed to help university students
 ## How to run the app locally
 
 ### Prerequisites
-
+```md
+For iPhone testing on restricted Wi-Fi, you can use ngrok to tunnel the backend. (Instructions below)
+```
 - Node.js
 - npm
 - Expo Go (for iOS testing)
 - Supabase project credentials
+- OPTIONAL: ngrok
 
 ### Backend
 
@@ -53,6 +56,61 @@ npx expo start --tunnel
 
 Open Expo Go on your iPhone and scan the QR code.
 
+### Optional: Run on iPhone with ngrok
+
+If your iPhone cannot reach your Mac directly on the local network, you can tunnel the backend with ngrok.
+
+#### Install ngrok and connect your account
+
+```bash
+brew install ngrok/ngrok/ngrok
+ngrok config add-authtoken YOUR_NGROK_AUTH_TOKEN
+```
+
+#### Start the backend
+
+```bash
+cd server
+npm install
+npm start
+```
+
+#### Open an ngrok tunnel for the backend
+
+In a second terminal:
+
+```bash
+ngrok http 3000
+```
+
+Copy the HTTPS forwarding URL that ngrok shows, for example:
+
+```text
+https://abc123.ngrok-free.app
+```
+
+#### Update the frontend environment file
+
+In `frontend/.env`, set:
+
+```env
+EXPO_PUBLIC_API_URL=https://YOUR_NGROK_URL
+```
+
+Replace `YOUR_NGROK_URL` with the HTTPS URL from ngrok.
+
+#### Restart Expo
+
+```bash
+cd frontend
+npx expo start --tunnel
+```
+
+Open Expo Go on your iPhone and scan the QR code.
+
+#### Note
+
+Ngrok URLs usually change each time you restart ngrok unless you have a reserved domain, so update `frontend/.env` whenever the URL changes.
 
 ## Architecture
 
