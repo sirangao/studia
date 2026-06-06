@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
@@ -101,7 +102,7 @@ const MAX_BAR_HEIGHT = 100;
 
 function WeeklyBarChart({ weeklyCounts }) {
   const values = DAYS.map(d => weeklyCounts[d] || 0);
-  const maxVal = Math.max(...values, 1);
+  const maxVal = Math.max(...values, 3600);
   const todayIndex = new Date().getDay();
 
   return (
@@ -159,7 +160,7 @@ const chartStyles = StyleSheet.create({
     borderRadius: 6,
   },
   barDefault: { backgroundColor: '#4A90D9' },
-  barToday:   { backgroundColor: '#1A1F36' },
+  barToday:   { backgroundColor: '#1A56A8' },
   durationLabel: {
     fontSize: 8,
     color: '#8892B0',
@@ -323,12 +324,12 @@ export default function ProfileScreen({ user, token, onLogout, navigation, onUpd
     }
   }
 
-  useEffect( () => {
+  useFocusEffect(useCallback(() => {
     loadWeeklySessions();
     loadFriendCount();
     loadFriendRequests();
     loadAcceptances();
-  }, []);
+  }, []));
 
   async function loadWeeklySessions() {
     try {
