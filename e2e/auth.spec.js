@@ -57,6 +57,7 @@ test('starts and ends study session thru UI',
     await expect(page.getByText(/Hey,/)).toBeVisible();
     
 //add a class to profile
+
     await page.getByText('Edit').first().click();
     await page.getByPlaceholder('Add a class').fill('CS 35L');
 
@@ -74,4 +75,9 @@ test('starts and ends study session thru UI',
     await modalCard.getByText('CS 35L').click();
     await expect(page.getByText(/Studying:/)).toBeVisible();
     await page.waitForTimeout(2000); //studies for a bit
+
+    //end the sesh
+    await page.getByText('End Session').click();
+    await page.getByText('Save Session').click();
+    await expect(page.getByText('Start Study Session')).toBeVisible();
     });
