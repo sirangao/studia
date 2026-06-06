@@ -59,6 +59,17 @@ async function findFriendRequests(userId){
     return data
 }
 
+async function findAcceptedRequestsByUserId(userId) {
+  const { data, error } = await supabase
+    .from('friendships')
+    .select('user_id_low, user_id_high')
+    .eq('requester_id', Number(userId))
+    .eq('status', 'accepted')
+    .or(`user_id_low.eq.${Number(userId)},user_id_high.eq.${Number(userId)}`)
+  if (error) throw error
+  return data
+}
+
 async function deleteFriendship(userId, friendId){
   const [low_id, high_id] = lowBeforeHigh(userId, friendId);
   const { data, error } = await supabase  
@@ -66,4 +77,4 @@ async function deleteFriendship(userId, friendId){
   if(error) throw error
 }
 
-module.exports = { findByPair, findPendingByPair, create, accept, findAcceptedByUserId, findFriendRequests, deleteFriendship }
+module.exports = { findByPair, findPendingByPair, create, accept, findAcceptedByUserId, findFriendRequests, findAcceptedRequestsByUserId, deleteFriendship }

@@ -46,6 +46,22 @@ async function findAllByUserId(userId) {
   return data.map(normalize)
 }
 
+async function findWeeklyDurationByUserId(userId) {
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('duration')
+    .eq('user_id', userId)
+    .eq('active', false)
+    .gte('start_time', startOfWeek.toISOString())
+  if (error) throw error
+  return data.reduce((sum, s) => sum + (s.duration || 0), 0)
+}
+
 async function deleteById(id, userId) {
   const { error } = await supabase
     .from('sessions').delete().eq('id', Number(id)).eq('user_id', Number(userId)).select();
@@ -54,4 +70,4 @@ async function deleteById(id, userId) {
   console.log('deleteById id:', id, 'userId:', userId);
 
 }
-module.exports = { findActiveByUserId, create, stop, findAllByUserId, deleteById }
+module.exports = { findActiveByUserId, create, stop, findAllByUserId, deleteById, findWeeklyDurationByUserId }

@@ -4,6 +4,7 @@ const userRepo = require('../repositories/userRepository')
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcrypt')
 const requireAuth = require('../middleware/requireAuth')
+const { validateUsername } = require('../middleware/sanitize')
 
 const supabase = require('../db');
 const multer = require('multer');
@@ -32,6 +33,10 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ error: 'username, password, and name are required' });
   }
 
+  if (!validateUsername(username)) {
+    return res.status(400).json({ error: 'username may only contain letters, numbers, underscores, and hyphens' });
+  }
+
   try {
     const existing = await userRepo.findByUsername(username)
     if (existing) return res.status(409).json({ error: 'Username already taken' })
@@ -53,6 +58,10 @@ router.post('/login', async (req, res) => {
 
   if (!username || !password) {
     return res.status(400).json({ error: 'username and password are required' });
+  }
+
+  if (!validateUsername(username)) {
+    return res.status(400).json({ error: 'username may only contain letters, numbers, underscores, and hyphens' });
   }
 
   try {
@@ -127,6 +136,9 @@ router.patch('/update', requireAuth, async (req, res) => {
 
   if(Object.keys(fields).length === 0)
     return res.status(400).json({error: 'no fields to update'});
+
+  if(fields.username && !validateUsername(fields.username))
+    return res.status(400).json({error: 'username may only contain letters, numbers, underscores, and hyphens'});
 
   try{
     if(fields.username){

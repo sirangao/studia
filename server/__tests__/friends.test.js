@@ -3,12 +3,14 @@ process.env.SUPABASE_URL='http://localhost:54321'
 process.env.SUPABASE_KEY='test'
 jest.mock('../repositories/userRepository')
 jest.mock('../repositories/friendshipRepository')
+jest.mock('../repositories/sessionRepository')
 
 const jwt = require('jsonwebtoken')
 const request = require('supertest')
 const app = require('../app')
 const userRepo = require('../repositories/userRepository')
 const friendshipRepo = require('../repositories/friendshipRepository')
+const sessionRepo = require('../repositories/sessionRepository')
 
 const token1 = jwt.sign({id: 1}, process.env.JWT_SECRET)
 const token2 = jwt.sign({id: 2}, process.env.JWT_SECRET)
@@ -47,6 +49,14 @@ describe('GET /friends/search', () => {
 
     expect(res.statusCode).toBe(200)
     expect(res.body.users).toHaveLength(0)
+  })
+
+  test('returns 400 when search query contains SQL metacharacters', async () => {
+    const res = await request(app)
+      .get("/friends/search?username=' OR 1=1 --")
+      .set('Authorization', `Bearer ${token1}`)
+
+    expect(res.statusCode).toBe(400)
   })
 })
 
@@ -122,6 +132,7 @@ describe('GET /friends/:userId', () => {
     userRepo.findManyByIds.mockResolvedValue([
       { id: 2, username: 'bob', name: 'Bob' }
     ])
+    sessionRepo.findWeeklyDurationByUserId.mockResolvedValue(3600)
 
     const res = await request(app)
       .get('/friends/1')
