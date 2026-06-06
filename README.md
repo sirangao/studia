@@ -188,5 +188,10 @@ sequenceDiagram
     HS-->>User: Shows "🟢 Live" banner + "End Session" button
 ```
 
+### Diagram 3 - Adding Optional Study Notes to a Session (Sequence Diagram)
+
+[UML Sequence Diagram.drawio (2).pdf](https://github.com/user-attachments/files/28655902/UML.Sequence.Diagram.drawio.2.pdf)
+
+
 
 

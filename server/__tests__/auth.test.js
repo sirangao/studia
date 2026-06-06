@@ -36,6 +36,14 @@ describe('POST /auth/register', () => {
     expect(res.statusCode).toBe(400);
   });
 
+  test('returns 400 when username contains SQL metacharacters', async () => {
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ username: "' OR 1=1 --", password: 'pass123', name: 'Hacker' });
+
+    expect(res.statusCode).toBe(400);
+  });
+
   test('returns 409 when username is already taken', async () => {
 
     userRepo.findByUsername.mockResolvedValue({id: 1})

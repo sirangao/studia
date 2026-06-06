@@ -83,13 +83,20 @@ export default function FriendsScreen({ user, token }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}> 
-        <TextInput 
-          style={styles.headerTitle}
-          placeholder='⌕ Find Friends by Username'
-          value={searchQuery}
-          onChangeText={duringSearch}
-        />
+      <View style={styles.header}>
+        <View style={styles.searchRow}>
+          <TextInput
+            style={styles.headerTitle}
+            placeholder='⌕ Find Friends by Username'
+            value={searchQuery}
+            onChangeText={duringSearch}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity style={styles.clearButton} onPress={() => duringSearch('')}>
+              <Text style={styles.clearButtonText}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {
@@ -154,7 +161,12 @@ const styles = StyleSheet.create({
       backgroundColor: '#fff',
       textAlign: 'center'
     },
+    searchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
     headerTitle: {
+      flex: 1,
       fontSize: 16,
       fontWeight: '500',
       color: 'dimgray',
@@ -163,6 +175,14 @@ const styles = StyleSheet.create({
       borderRadius: 16,
       paddingVertical: 4,
       paddingHorizontal: 10,
+    },
+    clearButton: {
+      marginLeft: 8,
+      padding: 4,
+    },
+    clearButtonText: {
+      fontSize: 16,
+      color: '#8892B0',
     },
     list: { paddingVertical: 8 },
     card: {

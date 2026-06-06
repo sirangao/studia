@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -186,6 +186,9 @@ export default function ProfileScreen({ user, token, onLogout, navigation, onUpd
   const [previewURI, setPreviewURI] = useState(null);
   const [friendRequests, setFriendRequests] = useState([]);
   const [friendRequestsVisible, setFriendRequestsVisible] = useState(false);
+  const [newAcceptances, setNewAcceptances] = useState([]);
+  const [acceptancesVisible, setAcceptancesVisible] = useState(false);
+  const seenAcceptances = useRef(new Set());
 
   async function loadFriendRequests() {
     try{
@@ -198,6 +201,20 @@ export default function ProfileScreen({ user, token, onLogout, navigation, onUpd
     }
     catch(err){
       console.log('ERROR: unable to load friend requests');
+    }
+  }
+
+  async function loadAcceptances() {
+    try {
+      const data = await fetch(`${API_URL}/friends/acceptances`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const result = await data.json();
+      if (!data.ok) return;
+      const unseen = (result.acceptances || []).filter(u => !seenAcceptances.current.has(u.id));
+      setNewAcceptances(unseen);
+    } catch (err) {
+      console.error('ERROR: could not load acceptances', err);
     }
   }
 
@@ -306,6 +323,7 @@ export default function ProfileScreen({ user, token, onLogout, navigation, onUpd
     loadWeeklySessions();
     loadFriendCount();
     loadFriendRequests();
+    loadAcceptances();
   }, []);
 
   async function loadWeeklySessions() {
@@ -441,14 +459,21 @@ return (
       }
     </TouchableOpacity>
 
+    {newAcceptances.length > 0 && (
+      <TouchableOpacity style={[styles.notificationCard, styles.notificationCardGreen]} onPress={() => setAcceptancesVisible(true)}>
+        <Text style={styles.notificationText}>✅ Accepted Your Request</Text>
+        <View style={styles.notificationBadge}><Text style={styles.notificationBadgeText}>{newAcceptances.length}</Text></View>
+      </TouchableOpacity>
+    )}
+
     <View style={styles.profileCard}>
 
       <Image style={styles.avatar} source={getAvatarSource()} />
 
       <View style={styles.profileInfo}>
 
-        <Text style={styles.profileName}>{user.name}</Text>
-        <Text style={styles.profileUsername}>@{user.username}</Text>
+        <Text style={styles.profileName} numberOfLines={1}>{user.name}</Text>
+        <Text style={styles.profileUsername} numberOfLines={1}>@{user.username}</Text>
 
         <View style={styles.stats}>
           <TouchableOpacity onPress={() => navigation.navigate('Friends')}>
@@ -456,14 +481,14 @@ return (
           </TouchableOpacity>
         </View>
 
-      </View>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={startEdit}
+        >
+          <Text style={styles.buttonText}>Edit Profile</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={styles.button}
-        onPress={startEdit}
-      >
-        <Text style={styles.buttonText}>Edit Profile</Text>
-      </TouchableOpacity>
+      </View>
       
       
     </View>
@@ -614,6 +639,39 @@ return (
 
       </View>
     </Modal>
+
+    <Modal
+      animationType='slide'
+      transparent
+      visible={acceptancesVisible}
+      onRequestClose={() => setAcceptancesVisible(false)}
+    >
+      <View style={styles.modalBackground}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalHeader}>New Friends</Text>
+          <FlatList
+            data={newAcceptances}
+            keyExtractor={(item) => String(item.id)}
+            renderItem={({ item }) => (
+              <View style={styles.profileCardFriend}>
+                <Text style={styles.friendRequestName} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.profileUsername} numberOfLines={1}>@{item.username}</Text>
+              </View>
+            )}
+          />
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => {
+              newAcceptances.forEach(u => seenAcceptances.current.add(u.id));
+              setNewAcceptances([]);
+              setAcceptancesVisible(false);
+            }}
+          >
+            <Text style={styles.closeButtonText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
   </View>
 );
 }
@@ -631,10 +689,15 @@ const styles = StyleSheet.create({
     padding: 14,
     marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 16,
+    marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  notificationCardGreen: {
+    backgroundColor: '#EAFAF1',
+    marginTop: 0,
+    marginBottom: 16,
   },
 
   notificationText: {
@@ -668,7 +731,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 16,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
 
   profileCardFriend: {
@@ -781,6 +844,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     alignSelf: 'flex-end',
+    marginTop: 10,
   },
 
   buttonText: {

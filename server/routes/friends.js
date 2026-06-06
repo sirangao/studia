@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const userRepo = require('../repositories/userRepository')
 const friendshipRepo = require('../repositories/friendshipRepository');
+const sessionRepo = require('../repositories/sessionRepository');
+const { validateUsername } = require('../middleware/sanitize');
 
 // GET /friends/search?username=xxx
 router.get('/search', async (req, res) => {
@@ -10,6 +12,10 @@ router.get('/search', async (req, res) => {
 
   if (!username) {
     return res.status(400).json({ error: 'username query param is required' });
+  }
+
+  if (!validateUsername(username)) {
+    return res.status(400).json({ error: 'username may only contain letters, numbers, underscores, and hyphens' });
   }
 
   try {
@@ -164,6 +170,22 @@ router.post('/remove', async (req, res) => {
   }
 });
 
+// GET /friends/acceptances
+router.get('/acceptances', async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const acceptances = await friendshipRepo.findAcceptedRequestsByUserId(userId)
+    const friendIds = acceptances.map(f =>
+      f.user_id_low === userId ? f.user_id_high : f.user_id_low
+    )
+    const users = await userRepo.findManyByIds(friendIds)
+    res.json({ acceptances: users })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Database error' })
+  }
+});
+
 // GET /friends/:userId
 router.get('/:userId', async (req, res) => {
   console.log('GET /friends/:userId', req.params.userId);
@@ -177,7 +199,13 @@ router.get('/:userId', async (req, res) => {
       f.user_id_low === parseInt(userId) ? f.user_id_high : f.user_id_low
     )
     const friends = await userRepo.findManyByIds(friendIds)
-    res.json({ friends })
+    const friendsWithHours = await Promise.all(
+      friends.map(async (f) => ({
+        ...f,
+        hoursStudied: await sessionRepo.findWeeklyDurationByUserId(f.id)
+      }))
+    )
+    res.json({ friends: friendsWithHours })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Database error' })
